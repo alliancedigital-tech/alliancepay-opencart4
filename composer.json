@@ -1,0 +1,24 @@
+{
+    "name": "alliance/opencart4-alliancepay",
+    "description": "AlliancePay payment gateway for OpenCart 4 (PHP 8.2)",
+    "type": "opencart-extension",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": ">=8.2",
+        "composer/installers": "^2.0",
+        "kelvinmo/simplejwt": "^v1.0.1"
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.0"
+        },
+        "allow-plugins": {
+            "composer/installers": true
+        },
+        "sort-packages": true
+    },
+    "extra": {
+        "name": "alliance",
+        "id": "alliance"
+    }
+}

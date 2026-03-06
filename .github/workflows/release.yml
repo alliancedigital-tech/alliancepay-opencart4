@@ -1,0 +1,50 @@
+name: Create OpenCart 4 Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Prepare OC4 Structure
+        run: |
+          mkdir -p build/admin
+          mkdir -p build/catalog
+          mkdir -p build/system/library/vendor
+          
+          [ -d admin ] && cp -rv admin/* build/admin/
+          [ -d catalog ] && cp -rv catalog/* build/catalog/
+          [ -d system ] && cp -rv system/* build/system/
+          
+          cp -rv vendor/* build/system/library/vendor/
+          
+          if [ -f install.json ]; then
+            cp -v install.json build/install.json
+          elif [ -f install.xml ]; then
+            cp -v install.xml build/install.xml
+          fi
+
+      - name: Create OC4 Archive
+        run: |
+          cd build
+          zip -r ../alliance.ocmod.zip .
+          cd ..
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: alliance.ocmod.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
