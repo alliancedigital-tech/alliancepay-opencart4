@@ -81,8 +81,6 @@ class Alliance extends \Opencart\System\Engine\Controller
     public function payment(): void
     {
         $this->load->model('checkout/order');
-        $ecom = new Ecom($this->registry);
-
         $order = $this->model_checkout_order->getOrder($this->session->data['order_id']);
 
         try {
@@ -92,7 +90,7 @@ class Alliance extends \Opencart\System\Engine\Controller
             $decrypt_auth = $this->ecom->decryptResponse($jwe_token);
             $data = $this->ecom->createCardHppOrder(
                 $decrypt_auth,
-                $this->session,
+                $order,
                 $this->config,
                 $this->url,
                 $order['total']

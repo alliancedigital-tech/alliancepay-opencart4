@@ -37,6 +37,76 @@ class Ecom
     private object $language;
     private $logger;
 
+    private AllianceCountryCodeProvider $countryCodeProvider;
+
+    private $validationRules = [
+        'senderCustomerId' => [
+            'type'     => 'string',
+            'max_len'  => 255,
+            'required' => true,
+        ],
+        'senderFirstName' => [
+            'type'           => 'string',
+            'max_len'        => 30,
+            'required'       => false,
+            'no_only_digits' => true,
+            'pattern'        => '/^[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ]([a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ\s\-\']*[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ])?$/u',
+            'stop_words'     => ['NULL', '3D SECURE', 'SURNAME', 'CARDHOLDER', 'UNKNOWN']
+        ],
+        'senderLastName' => [
+            'type'           => 'string',
+            'max_len'        => 30,
+            'required'       => false,
+            'no_only_digits' => true,
+            'pattern'        => '/^[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ]([a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ\s\-\']*[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ])?$/u'
+        ],
+        'senderEmail' => [
+            'type'     => 'string',
+            'max_len'  => 256,
+            'required' => false
+        ],
+        'senderCountry' => [
+            'type'     => 'string',
+            'max_len'  => 3,
+            'required' => false
+        ],
+        'senderRegion' => [
+            'type'     => 'string',
+            'max_len'  => 255,
+            'required' => false
+        ],
+        'senderCity' => [
+            'type'     => 'string',
+            'max_len'  => 25,
+            'required' => false
+        ],
+        'senderStreet' => [
+            'type'     => 'string',
+            'max_len'  => 35,
+            'required' => false
+        ],
+        'senderAdditionalAddress' => [
+            'type'     => 'string',
+            'max_len'  => 255,
+            'required' => false
+        ],
+        'senderIp' => [
+            'type'     => 'string',
+            'max_len'  => 50,
+            'required' => false
+        ],
+        'senderPhone' => [
+            'type'     => 'numeric_string',
+            'max_len'  => 20,
+            'required' => false
+        ],
+        'senderZipCode' => [
+            'type'     => 'string',
+            'max_len'  => 50,
+            'required' => false
+        ],
+    ];
+
     public function __construct(Registry $registry)
     {
         $this->config = $registry->get('config');
@@ -45,9 +115,11 @@ class Ecom
         $loader = $registry->get('load');
         $loader->helper('extension/alliance/alliance/datetime');
         $loader->helper('extension/alliance/alliance/log/alliancelogger');
+        $loader->helper('extension/alliance/alliance/alliancecountrycodeprovider');
         $this->logger = new AllianceLogger($registry);
         $this->dateTime = new Datetime();
         $this->client = new Client(['base_uri' => $this->config->get('payment_alliance_url')]);
+        $this->countryCodeProvider = new AllianceCountryCodeProvider();
 
         $autoload = DIR_EXTENSION . 'alliance/system/library/vendor/autoload.php';
 
@@ -128,15 +200,20 @@ class Ecom
     }
 
     /**
-     * @throws Exception
+     * @param array $decrypt_auth
+     * @param array $orderInfo
+     * @param object $config
+     * @param $url
+     * @param $total_price
+     * @return mixed
      */
-    public function createCardHppOrder(array $decrypt_auth, object $session, object $config, $url, $total_price)
+    public function createCardHppOrder(array $decrypt_auth, array $orderInfo, object $config, $url, $total_price)
     {
         try {
             $notificationUrl = $this->getNotificationUrl($url);
             $response = $this->client->request(self::METHOD_POST, self::CREATE_ORDER, [
                 'headers' => $this->getHeaders($decrypt_auth),
-                'json' => $this->collectPaymentData($session, $config, $notificationUrl, $total_price),
+                'json' => $this->collectPaymentData($orderInfo, $config, $notificationUrl, $total_price),
             ]);
         } catch (GuzzleException $e) {
             $this->logger->log('can\'t create order: ' . $e->getMessage(), LogLevel::ERROR);
@@ -216,33 +293,64 @@ class Ecom
     }
 
     /**
-     * @param object $session
+     * @param array $orderInfo
      * @param object $config
      * @param $url
      * @param $total_price
      * @return array
      */
-    private function collectPaymentData(object $session, object $config, $url, $total_price): array
+    private function collectPaymentData(array $orderInfo, object $config, $url, $total_price): array
     {
-        if (!isset($session->data['customer']['customer_id'])){
-            $customer_id = 'not_authorized_' . uniqid();
+        $customerData = [];
+        if ($orderInfo) {
+            $isoCode2 = !empty($orderInfo['payment_iso_code_2'])
+                ? $orderInfo['payment_iso_code_2']
+                : ($orderInfo['shipping_iso_code_2'] ?? '');
+
+            $customerData = [
+                'senderFirstName' => $orderInfo['firstname'] ?? '',
+                'senderLastName' => $orderInfo['lastname'] ?? '',
+                'senderEmail' => $orderInfo['email'] ?? '',
+                'senderCountry' => !empty($isoCode2)
+                    ? $this->countryCodeProvider->getCountryNumericCodeByAlpha2($isoCode2)
+                    : '',
+                'senderRegion' => !empty($orderInfo['payment_zone'])
+                    ? $orderInfo['payment_zone']
+                    : ($orderInfo['shipping_zone'] ?? ''),
+                'senderCity' => !empty($orderInfo['payment_city'])
+                    ? $orderInfo['payment_city']
+                    : ($orderInfo['shipping_city'] ?? ''),
+                'senderStreet' => !empty($orderInfo['payment_address_1'])
+                    ? $orderInfo['payment_address_1']
+                    : ($orderInfo['shipping_address_1'] ?? ''),
+                'senderAdditionalAddress' => !empty($orderInfo['payment_address_2'])
+                    ? $orderInfo['payment_address_2']
+                    : ($orderInfo['shipping_address_2'] ?? ''),
+                'senderIp' => $orderInfo['ip'] ?? $this->request->server['REMOTE_ADDR'],
+                'senderPhone' => $orderInfo['telephone'] ?? '',
+                'senderZipCode' => !empty($orderInfo['payment_postcode'])
+                    ? $orderInfo['payment_postcode']
+                    : ($orderInfo['shipping_postcode'] ?? ''),
+            ];
+        }
+
+        if (!empty($orderInfo['customer_id'])) {
+            $customerData['senderCustomerId'] = (string)$orderInfo['customer_id'];
         } else {
-            $customer_id = 'id_' . $session->data['customer']['customer_id'];
+            $customerData['senderCustomerId'] = 'guest_' . ($orderInfo['order_id'] ?? uniqid());
         }
 
         return [
-            "merchantId" => $config->get("payment_alliance_merchant_id"),
-            "hppPayType" => "PURCHASE",
-            "failUrl" => $config->get("payment_alliance_fail_url"),
-            "successUrl" => $config->get("payment_alliance_success_url"),
-            "merchantRequestId" => uniqid(),
-            "statusPageType" => "STATUS_TIMER_PAGE",
-            "paymentMethods" => ["CARD", "APPLE_PAY", "GOOGLE_PAY"],
-            "customerData" => [
-                "senderCustomerId" => $customer_id,
-            ],
-            "coinAmount" => (int)($total_price * 100),
-            "notificationUrl" => $url
+            'merchantId' => $config->get('payment_alliance_merchant_id'),
+            'hppPayType' => 'PURCHASE',
+            'failUrl' => $config->get('payment_alliance_fail_url'),
+            'successUrl' => $config->get('payment_alliance_success_url'),
+            'merchantRequestId' => (string)($orderInfo['order_id'] ?? uniqid()),
+            'statusPageType' => 'STATUS_TIMER_PAGE',
+            'paymentMethods' => ['CARD', 'APPLE_PAY', 'GOOGLE_PAY'],
+            'customerData' => $this->validateCustomerData($customerData, $this->validationRules),
+            'coinAmount' => (int)round($total_price * 100),
+            'notificationUrl' => $url
         ];
     }
 
@@ -260,7 +368,6 @@ class Ecom
 
     private function getHeaders(array $decrypt_auth = [], $contentType = 'application/json'): array
     {
-        //$headers["Accept"] = $contentType;
         $headers["Content-Type"] = $contentType;
         $headers["x-api_version"] = "v1";
         $headers["x-request_id"] = uniqid();
@@ -288,5 +395,72 @@ class Ecom
     private function getServerPublicKey(array $decrypt_auth = [])
     {
         return $decrypt_auth['serverPublic'] ?? null;
+    }
+
+    /**
+     * @param $data
+     * @param $rules
+     * @return array
+     */
+    public function validateCustomerData($data, $rules) {
+        $validated = [];
+
+        foreach ($rules as $field => $rule) {
+            $value = isset($data[$field]) ? trim($data[$field]) : '';
+            $is_valid = true;
+            $error_reason = '';
+
+            if ($rule['required'] && $value === '') {
+                $is_valid = false;
+                $error_reason = 'поле є обов’язковим, але воно порожнє';
+            }
+
+            if ($value !== '' && $is_valid) {
+                if (isset($rule['type']) && $rule['type'] === 'numeric_string') {
+                    $value = preg_replace('/\D/', '', $value);
+                }
+
+                if (isset($rule['no_only_digits']) && preg_match('/^\d+$/', $value)) {
+                    $is_valid = false;
+                    $error_reason = 'значення не може містити виключно цифри';
+                }
+
+                if ($is_valid && isset($rule['pattern'])) {
+                    if (!preg_match($rule['pattern'], $value)) {
+                        $is_valid = false;
+                        $error_reason = 'значення містить заборонені символи або невірний формат (пробіли/дефіси по краях)';
+                    }
+                }
+
+                if ($is_valid && isset($rule['stop_words'])) {
+                    if (in_array(mb_strtoupper($value), $rule['stop_words'])) {
+                        $is_valid = false;
+                        $error_reason = 'виявлено заборонене стоп-слово: ' . $value;
+                    }
+                }
+
+                if ($is_valid && isset($rule['max_len'])) {
+                    if (mb_strlen($value) > $rule['max_len']) {
+                        $is_valid = false;
+                        $error_reason = 'перевищено ліміт символів (max: ' . $rule['max_len'] . ')';
+                    }
+                }
+            }
+
+            if ($is_valid && $value !== '') {
+                $validated[$field] = $value;
+            } else {
+                if ($value !== '' || $rule['required']) {
+                    $this->log->write(sprintf(
+                        'Payment Aggregation Error: Field [%s] removed. Reason: %s. Value was: [%s]',
+                        $field,
+                        $error_reason,
+                        $value
+                    ));
+                }
+            }
+        }
+
+        return $validated;
     }
 }

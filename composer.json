@@ -6,7 +6,8 @@
     "require": {
         "php": ">=8.2",
         "composer/installers": "^2.0",
-        "kelvinmo/simplejwt": "^v1.0.1"
+        "kelvinmo/simplejwt": "^v1.0.1",
+        "league/iso3166": "4.3.3"
     },
     "config": {
         "platform": {

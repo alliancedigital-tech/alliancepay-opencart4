@@ -8,7 +8,7 @@ use Opencart\System\Library\Extension\Alliance\Http\ResponseDecoder;
 
 class Alliance extends \Opencart\System\Engine\Controller
 {
-    public $version = '1.0.0';
+    public $version = '1.1.0';
     private array $events = [
         [
             'description' => 'Order info',
