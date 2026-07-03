@@ -51,6 +51,7 @@ $_['entry_api_url']               = 'Alliance API URL';
 $_['entry_param_x']               = 'Параметр "x"';
 $_['entry_param_y']               = 'Параметр "y"';
 $_['entry_param_d']               = 'Параметр "d"';
+$_['entry_hpp_type']              = 'Тип HPP сторінки';
 $_['entry_fail_url']              = 'Сторінка на яку перенаправиться користувач в разі помилки оплати';
 $_['entry_success_url']           = 'Сторінка на яку перенаправиться користувач в разі успішної оплати';
 $_['entry_status']                = 'Статус модуля оплати';
@@ -74,6 +75,7 @@ $_['help_error_status']           = 'Виберіть статус, який в�
 $_['help_paid_status']            = 'Виберіть статус, який відповідає "Complete" у вашому магазині';
 $_['help_refunded_status']        = 'Виберіть статус, який відповідає "Refunded" у вашому магазині';
 $_['help_refund_fail_status']     = 'Виберіть статус, який відповідає "Failed" у вашому магазині';
+$_['help_hpp_type']               = 'Виберіть тип HPP платежу з двох доступних PURCHASE або A2A.';
 
 // Button
 $_['button_save']                 = 'Зберегти';
@@ -83,10 +85,13 @@ $_['button_check_status']         = 'Перевірити статус замо�
 $_['text_refund_shipping_cost']   = 'Повернути вартість доставки?';
 $_['text_please_select_products'] = 'Оберіть продукти для повернення.';
 $_['text_confirm_return_requests'] = 'Ви підтверджуєте повернення?';
-$_['text_refund_success_message'] = 'Успіх: Повернення виконано!';
+$_['text_refund_success_message']  = 'Успіх: Повернення виконано!';
+$_['text_refund_history_comment']  = 'Кошти повернено через Alliance Payment';
+$_['text_auto_return_comment']     = 'Автоматичний запит на повернення через Alliance Payment';
 
 // Error
 $_['error_permission']            = 'Увага: У вас немає дозволу на зміну модуля Alliance!';
 $_['error_technical']             = 'Сталась технічна помилка';
 $_['error_something_went_wrong']  = 'Щось пішло не так :(';
 $_['error_refund_not_allowed']    = 'Не можна зробити повернення! Дивіться журнал помилок alliance.log.';
+$_['text_alliance_operation_purchase_not_found'] = 'Не знайдено операції купівлі.';

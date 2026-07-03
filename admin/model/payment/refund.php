@@ -1,4 +1,7 @@
 <?php
+/**
+ * Copyright © 2026 Alliance Dgtl. https://alb.ua/uk
+ */
 
 declare(strict_types=1);
 
@@ -12,6 +15,9 @@ use Opencart\System\Helper\Alliance\Ecom;
 use Opencart\System\Helper\Alliance\log\AllianceLogger;
 use Psr\Log\LogLevel;
 
+/**
+ * Class Refund.
+ */
 class Refund extends Model
 {
     public function __construct(Registry $registry)
@@ -28,6 +34,7 @@ class Refund extends Model
         // extension/alliance/admin/model/payment/refund/history.php
         $this->load->model('extension/alliance/payment/refund/history');
         $this->load->language('extension/alliance/payment/alliance');
+        $this->load->model('sale/order');
         $this->ecom = new Ecom($registry);
         $this->logger = new AllianceLogger($registry);
     }
@@ -42,6 +49,8 @@ class Refund extends Model
      */
     public function refundOrder(int $orderId, $isFullReturn = true, $productIds = [], $refundShipping = 0)
     {
+        $this->load->language('extension/alliance/payment/alliance');
+
         $data = [];
         if (!empty($orderId)) {
             $allianceOrderCallBack = $this->model_extension_alliance_payment_alliance
@@ -64,6 +73,14 @@ class Refund extends Model
                 } else {
                     $purchaseOperation = $this->getOperationPurchaseData($allianceOrderCallBack);
                 }
+
+                if (empty($purchaseOperation)) {
+                    return [
+                        'message' => $this->language->get('text_alliance_operation_purchase_not_found'),
+                        'error' => true,
+                    ];
+                }
+
                 $coinAmount = $isFullReturn
                     ? $purchaseOperation['coinAmount']
                     : $this->getPartialRefundCoinAmount(
@@ -88,7 +105,7 @@ class Refund extends Model
 
                 if (!empty($data['msgType']) && $data['msgType'] == 'ERROR') {
                     $this->logger->log(
-                        'Refund error: ' . $data['msgText'] ?? '',
+                        'Refund error: ' . ($data['msgText'] ?? ''),
                         LogLevel::ERROR
                     );
                 }
@@ -98,11 +115,11 @@ class Refund extends Model
                     $orderId
                 );
                 $totalAmountRefunds = $this->model_extension_alliance_payment_refund_history
-                    ->getRefundOperationsTotal((int) $orderId);
+                    ->getRefundOperationsTotal((int)$orderId);
                 if ($isFullReturn || $allianceOrder['coin_amount'] == $totalAmountRefunds) {
                     $this->model_extension_alliance_payment_refund_history->updateOrderHistoryAndStatus(
-                        (int) $orderId,
-                        (int) $this->config->get('payment_alliance_refunded_status'),
+                        (int)$orderId,
+                        (int)$this->config->get('payment_alliance_refunded_status'),
                         $this->language->get('text_refund_history_comment')
                     );
                 }
@@ -111,8 +128,8 @@ class Refund extends Model
                 $data['message'] = $e->getMessage();
                 $data['error'] = true;
                 $this->model_extension_alliance_payment_refund_history->updateOrderHistoryAndStatus(
-                    (int) $orderId,
-                    (int) $this->config->get('payment_alliance_refund_fail_status'),
+                    (int)$orderId,
+                    (int)$this->config->get('payment_alliance_refund_fail_status'),
                     $e->getMessage()
                 );
             }
@@ -121,8 +138,10 @@ class Refund extends Model
             $data['error'] = true;
         }
 
-        $data['message'] = $this->language->get('text_refund_success_message');
-        $data['success'] = true;
+        if (empty($data['error'])) {
+            $data['message'] = $this->language->get('text_refund_success_message');
+            $data['success'] = true;
+        }
 
         return $data;
     }
@@ -143,6 +162,10 @@ class Refund extends Model
         return $data;
     }
 
+    /**
+     * @param int $orderId
+     * @return bool
+     */
     public function checkIfOrderRefunded(int $orderId): bool
     {
         $refoundAmont = 0;
@@ -166,12 +189,16 @@ class Refund extends Model
     private function getOperationPurchaseData(array $orderCallBackData): array
     {
         $purchaseOperation = [];
+        $operationTypes = [
+            'PURCHASE',
+            'ACCOUNT_2_ACCOUNT'
+        ];
 
         if (!empty($orderCallBackData['operation'])) {
             $purchaseOperation = $orderCallBackData['operation'];
-        } elseif ($orderCallBackData['operations']) {
+        } elseif (!empty($orderCallBackData['operations'])) {
             foreach ($orderCallBackData['operations'] as $operation) {
-                if (!empty($operation['type']) && $operation['type'] == 'PURCHASE') {
+                if (!empty($operation['type']) && in_array($operation['type'], $operationTypes)) {
                     $purchaseOperation = $operation;
                 }
             }
@@ -180,6 +207,12 @@ class Refund extends Model
         return $purchaseOperation;
     }
 
+    /**
+     * @param $orderId
+     * @param $productIds
+     * @param $refundShipping
+     * @return int
+     */
     private function getPartialRefundCoinAmount($orderId, $productIds, $refundShipping = 0)
     {
         $coinAmount = 0;
@@ -203,7 +236,13 @@ class Refund extends Model
         return $coinAmount;
     }
 
-    private function proceedReturn($orderId ,$isFullReturn = true, $productIds = []): void
+    /**
+     * @param $orderId
+     * @param $isFullReturn
+     * @param $productIds
+     * @return void
+     */
+    private function proceedReturn($orderId, $isFullReturn = true, $productIds = []): void
     {
         $this->load->model('localisation/return_reason');
         $orderInfo = $this->model_sale_order->getOrder($orderId);
@@ -223,28 +262,32 @@ class Refund extends Model
 
         foreach ($returnProducts as $product) {
             $return_data = [
-                'order_id'   => $orderId,
-                'customer_id'=> $orderInfo['customer_id'],
-                'firstname'  => $orderInfo['firstname'],
-                'lastname'   => $orderInfo['lastname'],
-                'email'      => $orderInfo['email'],
-                'telephone'  => $orderInfo['telephone'],
-                'product'    => $product['name'],
+                'order_id' => $orderId,
+                'customer_id' => $orderInfo['customer_id'],
+                'firstname' => $orderInfo['firstname'],
+                'lastname' => $orderInfo['lastname'],
+                'email' => $orderInfo['email'],
+                'telephone' => $orderInfo['telephone'],
+                'product' => $product['name'],
                 'product_id' => $product['product_id'],
-                'model'      => $product['model'],
-                'quantity'   => $product['quantity'],
-                'opened'     => 0,
+                'model' => $product['model'],
+                'quantity' => $product['quantity'],
+                'opened' => 0,
                 'date_ordered' => $orderInfo['date_added'],
                 'return_reason_id' => 1,
                 'return_action_id' => 2,
                 'return_status_id' => 1,
-                'comment'    => $this->language->get('text_auto_return_comment'),
+                'comment' => $this->language->get('text_auto_return_comment'),
             ];
             $this->load->model('sale/returns');
             $this->model_sale_returns->addReturn($return_data);
         }
     }
 
+    /**
+     * @param $itemAmount
+     * @return int
+     */
     private function getCoinAmount($itemAmount)
     {
         $amount = number_format($itemAmount, 4, '.', '');

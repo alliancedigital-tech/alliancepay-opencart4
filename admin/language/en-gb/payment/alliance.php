@@ -38,6 +38,7 @@ $_['entry_api_url']               = 'Alliance API URL';
 $_['entry_param_x']               = 'Parameter "x"';
 $_['entry_param_y']               = 'Parameter "y"';
 $_['entry_param_d']               = 'Parameter "d"';
+$_['entry_hpp_type']              = 'Hpp Type';
 $_['entry_fail_url']              = 'Page to redirect the user in case of payment error';
 $_['entry_success_url']           = 'Page to redirect the user in case of successful payment';
 $_['entry_status']                = 'Payment module status';
@@ -61,6 +62,7 @@ $_['help_error_status']           = 'Select the status that corresponds to "Fail
 $_['help_paid_status']            = 'Select the status that corresponds to "Complete"';
 $_['help_refunded_status']        = 'Select the status that corresponds to "Refunded"';
 $_['help_refund_fail_status']     = 'Select the status that corresponds to "Failed"';
+$_['help_hpp_type']               = 'Choose the HPP payment type from the two available PURCHASE or A2A.';
 
 // Button
 $_['button_save']                 = 'Save';
@@ -70,10 +72,13 @@ $_['button_check_status']         = 'Check order status';
 $_['text_refund_shipping_cost']   = 'Refund shipping cost?';
 $_['text_please_select_products'] = 'Please select products for refund';
 $_['text_confirm_return_requests'] = 'Confirm refund request?';
-$_['text_refund_success_message'] = 'Success: Refund request has been confirmed!';
+$_['text_refund_success_message']  = 'Success: Refund request has been confirmed!';
+$_['text_refund_history_comment']  = 'Refunded via Alliance Payment';
+$_['text_auto_return_comment']     = 'Auto-created return request via Alliance Payment';
 
 // Error
 $_['error_permission']            = 'Warning: You do not have permission to modify Alliance payment module!';
 $_['error_technical']             = 'Technical error occurred';
 $_['error_something_went_wrong']  = 'Something went wrong :(';
 $_['error_refund_not_allowed']    = 'Cannot process refund! Check the alliance.log error log.';
+$_['text_alliance_operation_purchase_not_found'] = 'Purchase operation not found.';

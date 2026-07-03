@@ -125,6 +125,14 @@ class Alliance extends \Opencart\System\Engine\Model
             $implode[] = "`order_status` = '" . $data['orderStatus'] . "'";
         }
 
+        if (!empty($data['ecomOrderId'])) {
+            $implode[] = "`ecom_order_id` = '" . $data['ecomOrderId'] . "'";
+        }
+
+        if (!empty($data['operationId'])) {
+            $implode[] = "`operation_id` = '" . $data['operationId'] . "'";
+        }
+
         $implode[] = "`updated_at` = '" . $this->db->escape(date('Y-m-d H:i:s')) . "'";
         $implode[] = "`callback_data` = '" . $this->db->escape(json_encode($data)) . "'";
         $implode[] = "`is_callback_returned` = '" . $this->db->escape(1) . "'";

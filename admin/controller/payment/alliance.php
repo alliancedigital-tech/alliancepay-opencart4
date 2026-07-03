@@ -1,4 +1,10 @@
 <?php
+/**
+ * Copyright © 2026 Alliance Dgtl. https://alb.ua/uk
+ */
+
+declare(strict_types=1);
+
 namespace Opencart\Admin\Controller\Extension\Alliance\Payment;
 
 use Opencart\System\Engine\Registry;
@@ -6,34 +12,41 @@ use Opencart\System\Helper\Alliance\Config;
 use Opencart\System\Helper\Alliance\Ecom;
 use Opencart\System\Library\Extension\Alliance\Http\ResponseDecoder;
 
+/**
+ * Class Alliance.
+ */
 class Alliance extends \Opencart\System\Engine\Controller
 {
-    public $version = '1.1.0';
+    public $version = '1.2.0';
     private array $events = [
         [
             'description' => 'Order info',
-            'trigger' => 'admin/view/sale/order_info/before',
-            'action' => 'extension/alliance/payment/alliance|operationsEvent',
-            'event_code' => 'alliance_operations',
+            'trigger'     => 'admin/view/sale/order_info/before',
+            'action'      => 'extension/alliance/payment/alliance|operationsEvent',
+            'event_code'  => 'alliance_operations',
+            'sort_order'  => 1,
         ],
         [
             'description' => 'Fix session order id if its empty after addOrder method',
-            'trigger' => 'catalog/model/checkout/order/addOrder/after',
-            'action' => 'extension/alliance/payment/event/fix_session_order_id|afterAddOrder',
-            'event_code' => 'alliance_fix_session_order_id',
+            'trigger'     => 'catalog/model/checkout/order/addOrder/after',
+            'action'      => 'extension/alliance/payment/event/fix_session_order_id|afterAddOrder',
+            'event_code'  => 'alliance_fix_session_order_id',
+            'sort_order'  => 0,
         ],
         [
             'description' => 'Add refund button to order info',
-            'trigger' => 'admin/view/sale/order_info/after',
-            'action'=> 'extension/alliance/alliance/refund|injectRefundButton',
-            'event_code' => 'alliance_add_refund_button_order_info',
+            'trigger'     => 'admin/view/sale/order_info/after',
+            'action'      => 'extension/alliance/alliance/refund|injectRefundButton',
+            'event_code'  => 'alliance_add_refund_button_order_info',
+            'sort_order'  => 2,
         ],
         [
             'description' => 'Add partial refund button to order info',
-            'trigger' => 'admin/view/sale/order_info/after',
-            'action' => 'extension/alliance/event/order|orderInfoAfter',
-            'event_code' => 'alliance_order_info_partial_refund',
-        ]
+            'trigger'     => 'admin/view/sale/order_info/after',
+            'action'      => 'extension/alliance/event/order|orderInfoAfter',
+            'event_code'  => 'alliance_order_info_partial_refund',
+            'sort_order'  => 1,
+        ],
     ];
 
     public function index(): void
@@ -77,8 +90,7 @@ class Alliance extends \Opencart\System\Engine\Controller
             $this->response->redirect(
                 $this->url->link(
                     'extension/alliance/payment/alliance',
-                    'user_token=' . $this->getUserToken(),
-                    'SSL'
+                    'user_token=' . $this->getUserToken()
                 )
             );
         }
@@ -132,33 +144,33 @@ class Alliance extends \Opencart\System\Engine\Controller
 
     public function uninstall(): void
     {
-        $this->load->language('extension/report');
+        $this->load->language('extension/alliance/payment/alliance');
         $this->load->model('extension/alliance/payment/alliance');
-        $this->load->model('setting/extension');
+        $this->load->model('setting/event');
         $this->load->model('user/user_group');
-
-        $this->model_user_user_group->removePermission(
-            $this->user->getGroupId(),
-            'access',
-            'extension/alliance/module/alliance'
-        );
-
-        $this->model_user_user_group->removePermission(
-            $this->user->getGroupId(),
-            'modify',
-            'extension/alliance/module/alliance'
-        );
 
         $json = [];
 
-        if (!$this->user->hasPermission('modify', 'extension/report')) {
+        if (!$this->user->hasPermission('modify', 'extension/alliance/payment/alliance')) {
             $json['error'] = $this->language->get('error_permission');
         }
 
         if (!$json) {
-            $this->model_setting_extension->uninstall('report', $this->request->get['code']);
-            // Call uninstall method if it exists
-            //$this->load->controller('extension/' . $this->request->get['extension'] . '/report/' . $this->request->get['code'] . '.uninstall');
+            foreach ($this->events as $event) {
+                $this->model_setting_event->deleteEventByCode($event['event_code']);
+            }
+
+            $this->model_user_user_group->removePermission(
+                $this->user->getGroupId(),
+                'access',
+                'extension/alliance/alliance/refund'
+            );
+
+            $this->model_user_user_group->removePermission(
+                $this->user->getGroupId(),
+                'modify',
+                'extension/alliance/alliance/refund'
+            );
 
             $json['success'] = $this->language->get('text_success');
         }
@@ -203,7 +215,7 @@ class Alliance extends \Opencart\System\Engine\Controller
         }
     }
 
-    public function operationsEvent(string &$route, array &$data, string &$code): void
+    public function operationsEvent(&$route, &$data, &$code): void
     {
         $this->load->model('extension/alliance/payment/alliance');
         $this->load->model('sale/order');

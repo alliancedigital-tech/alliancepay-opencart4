@@ -1,4 +1,9 @@
 <?php
+/**
+ * Copyright © 2026 Alliance Dgtl. https://alb.ua/uk
+ */
+
+declare(strict_types=1);
 
 namespace Opencart\Admin\Controller\Extension\Alliance\Alliance;
 
@@ -16,6 +21,7 @@ class Refund extends Controller
     {
         parent::__construct($registry);
         $this->load->model('sale/order');
+        $this->load->model('extension/alliance/payment/alliance');
         $this->load->model('extension/alliance/payment/refund');
         $this->load->language('extension/alliance/payment/alliance');
     }
@@ -33,9 +39,13 @@ class Refund extends Controller
         $buttonHtml = '';
         $order_id = (int)$this->request->get['order_id'];
         $order_info = $this->model_sale_order->getOrder($order_id);
+        $isA2ACanBeRefund = $this->model_extension_alliance_payment_alliance
+            ->checkIfA2AOrderCanBeRefunded($order_id);
         $isRefunded = $this->model_extension_alliance_payment_refund->checkIfOrderRefunded((int) $order_id);
 
-        if ($order_info['payment_method']['code'] === Config::ALLIANCE_PAYMENT_CODE) {
+        if ($order_info['payment_method']['code'] === Config::ALLIANCE_PAYMENT_CODE
+            && $isA2ACanBeRefund
+        ) {
             $disabled = !$isRefunded ? 0 : 1;
 
             $text_refund = $this->language->get('button_refund');
@@ -80,7 +90,7 @@ class Refund extends Controller
                                     btn.disabled = true;
                                     alert(res.message || "' . $text_complete . '");
                                 })
-                                .catch(err => alert(res.message || "' . $text_failed . '"));
+                                .catch(err => alert(err.message || "' . $text_failed . '"));
                         });
                         btnPartial.addEventListener("click", function() {
                             proceedPartialReturn();

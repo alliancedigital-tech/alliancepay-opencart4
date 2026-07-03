@@ -23,8 +23,17 @@ class Order extends Controller
     public function orderInfoAfter(string &$route, array &$args, string &$output): void
     {
         $this->load->language('extension/alliance/payment/alliance');
+        $this->load->model('extension/alliance/payment/alliance');
 
         $order_id = (int)$this->request->get['order_id'];
+
+        $isA2ACanBeRefund = $this->model_extension_alliance_payment_alliance
+            ->checkIfA2AOrderCanBeRefunded($order_id);
+
+        if (!$isA2ACanBeRefund) {
+            return;
+        }
+
         $returned_products = [];
         $returned_query = $this->db->query(
             "SELECT product_id FROM `" . DB_PREFIX . "return` WHERE order_id = '" . $order_id . "'"
@@ -36,11 +45,11 @@ class Order extends Controller
         }
 
         $shipping_match = $this->language->get('text_shipping_match')
-            ? $this->language->get('text_shipping_match') : 'shipping';
-        $res_shipping = $this->db->query(
-            "SELECT return_id FROM `" . DB_PREFIX . "return` WHERE order_id = '" . $order_id
-            . "' AND comment LIKE '%" . $shipping_match . "%'");
-        $is_alliance_refunded = $res_shipping->num_rows > 0;
+            ?: 'shipping';
+
+        $is_alliance_refunded = $this->model_extension_alliance_payment_alliance
+            ->isShippingReturnedForOrder($order_id, $shipping_match);
+
         $search_header = '<td class="text-start">' . $args['column_product'] . '</td>';
         $add_header = '<td class="text-center" style="width: 1px;"><i class="fa-solid fa-undo" title="'
             . $this->language->get('text_select_for_return') . '"></i></td>' . "\n" . $search_header;
@@ -49,7 +58,7 @@ class Order extends Controller
         if (isset($args['order_products'])) {
             foreach ($args['order_products'] as $product) {
                 $search_product = '<td class="text-start"><a href="index.php?route=catalog/product.form&user_token='
-                    . $this->session->data['user_token'] .'&product_id=' . $product['product_id']
+                    . $this->session->data['user_token'] . '&product_id=' . $product['product_id']
                     . '" target="_blank">' . $product['name'] . '</a>';
 
                 if (in_array($product['order_product_id'], $returned_products)) {
@@ -79,6 +88,7 @@ class Order extends Controller
         $refund_html .= '</div></td></tr>';
 
         $output = str_replace('<tfoot>', '<tfoot>' . $refund_html, $output);
+
         $route_url = 'index.php?route=extension/alliance/alliance/refund|refund&user_token='
             . $this->session->data['user_token'] . '&order_id=' . $order_id;
 

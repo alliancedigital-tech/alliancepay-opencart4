@@ -7,7 +7,6 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Opencart\System\Engine\Registry;
 use Opencart\System\Helper\Alliance\log\AllianceLogger;
-use Opencart\System\Library\Url;
 use Psr\Log\LogLevel;
 use SimpleJWT\JWE;
 use SimpleJWT\Keys\KeyFactory;
@@ -24,12 +23,20 @@ class Ecom
 
     const CHECK_OPERATIONS = 'ecom/execute_request/hpp/v1/operations';
 
-    const NOTIFICATION_URL_ROUTE = 'index.php?route=extension/alliance/payment/alliance|notifyCallback';
+    const NOTIFICATION_URL_ROUTE = 'extension/alliance/payment/alliance|notifyCallback';
 
     const METHOD_POST = 'POST';
     const ALGORITHM = 'ECDH-ES+A256KW';
-
     const ENCRYPTION = 'A256GCM';
+
+    const HPP_PAY_TYPE_PURCHASE  = 'PURCHASE';
+    const HPP_PAY_TYPE_A2A       = 'A2A';
+    const A2A_DIRECT_TYPE        = 'BANK_LINK';
+    const A2A_PRIORITY_BANK_CODE = 'ALL_BANKS';
+
+    const OPERATION_TYPE_PURCHASE = 'PURCHASE';
+    const OPERATION_TYPE_A2A      = 'ACCOUNT_2_ACCOUNT';
+    const OPERATION_TYPE_REFUND   = 'REFUND';
 
     private Datetime $dateTime;
     private Client $client;
@@ -210,7 +217,7 @@ class Ecom
     public function createCardHppOrder(array $decrypt_auth, array $orderInfo, object $config, $url, $total_price)
     {
         try {
-            $notificationUrl = $this->getNotificationUrl($url);
+            $notificationUrl = $this->getNotificationUrl();
             $response = $this->client->request(self::METHOD_POST, self::CREATE_ORDER, [
                 'headers' => $this->getHeaders($decrypt_auth),
                 'json' => $this->collectPaymentData($orderInfo, $config, $notificationUrl, $total_price),
@@ -235,7 +242,7 @@ class Ecom
     {
         $refundResult = [];
         try {
-            $notificationUrl = $this->getNotificationUrl($url);
+            $notificationUrl = $this->getNotificationUrl();
             $serverPublicKey = json_decode(json_encode($this->getServerPublicKey($decrypt_auth)), true);
             $headers = $this->getHeaders($decrypt_auth, 'text/plain');
 
@@ -340,18 +347,29 @@ class Ecom
             $customerData['senderCustomerId'] = 'guest_' . ($orderInfo['order_id'] ?? uniqid());
         }
 
-        return [
-            'merchantId' => $config->get('payment_alliance_merchant_id'),
-            'hppPayType' => 'PURCHASE',
-            'failUrl' => $config->get('payment_alliance_fail_url'),
-            'successUrl' => $config->get('payment_alliance_success_url'),
-            'merchantRequestId' => (string)($orderInfo['order_id'] ?? uniqid()),
-            'statusPageType' => 'STATUS_TIMER_PAGE',
-            'paymentMethods' => ['CARD', 'APPLE_PAY', 'GOOGLE_PAY'],
-            'customerData' => $this->validateCustomerData($customerData, $this->validationRules),
-            'coinAmount' => (int)round($total_price * 100),
-            'notificationUrl' => $url
+        $hppPayType = $config->get('payment_alliance_hpp_type') ?? self::HPP_PAY_TYPE_PURCHASE;
+
+        $paymentData = [
+            'merchantId'        => $config->get('payment_alliance_merchant_id'),
+            'hppPayType'        => $hppPayType,
+            'failUrl'           => $config->get('payment_alliance_fail_url'),
+            'successUrl'        => $config->get('payment_alliance_success_url'),
+            'merchantRequestId' => uniqid(),
+            'statusPageType'    => 'STATUS_TIMER_PAGE',
+            'paymentMethods'    => ['CARD', 'APPLE_PAY', 'GOOGLE_PAY'],
+            'customerData'      => $this->validateCustomerData($customerData, $this->validationRules),
+            'coinAmount'        => (int)round($total_price * 100),
+            'notificationUrl'   => $url,
         ];
+
+        if ($hppPayType === self::HPP_PAY_TYPE_A2A) {
+            $paymentData['hppPaymentType']    = self::HPP_PAY_TYPE_A2A;
+            $paymentData['directType']        = self::A2A_DIRECT_TYPE;
+            $paymentData['priorityBankCode']  = self::A2A_PRIORITY_BANK_CODE;
+            $paymentData['merchantComment']   = 'Payment for order #' . ($orderInfo['order_id'] ?? '');
+        }
+
+        return $paymentData;
     }
 
     private function collectRefundData(string $url, array $callBackData): array
@@ -384,12 +402,13 @@ class Ecom
     }
 
     /**
-     * @param Url $url
      * @return string
      */
-    private function getNotificationUrl(Url $url): string
+    private function getNotificationUrl(): string
     {
-        return $url->link(self::NOTIFICATION_URL_ROUTE);
+        $baseUrl = defined('HTTP_CATALOG') ? HTTP_CATALOG : HTTP_SERVER;
+
+        return rtrim($baseUrl, '/') . '/index.php?route=' . self::NOTIFICATION_URL_ROUTE;
     }
 
     private function getServerPublicKey(array $decrypt_auth = [])
@@ -398,11 +417,12 @@ class Ecom
     }
 
     /**
-     * @param $data
-     * @param $rules
+     * @param array $data
+     * @param array $rules
      * @return array
      */
-    public function validateCustomerData($data, $rules) {
+    public function validateCustomerData(array $data, array $rules): array
+    {
         $validated = [];
 
         foreach ($rules as $field => $rule) {
@@ -412,7 +432,7 @@ class Ecom
 
             if ($rule['required'] && $value === '') {
                 $is_valid = false;
-                $error_reason = 'поле є обов’язковим, але воно порожнє';
+                $error_reason = $this->language->get('error_validation_required');
             }
 
             if ($value !== '' && $is_valid) {
@@ -422,27 +442,33 @@ class Ecom
 
                 if (isset($rule['no_only_digits']) && preg_match('/^\d+$/', $value)) {
                     $is_valid = false;
-                    $error_reason = 'значення не може містити виключно цифри';
+                    $error_reason = $this->language->get('error_validation_only_digits');
                 }
 
                 if ($is_valid && isset($rule['pattern'])) {
                     if (!preg_match($rule['pattern'], $value)) {
                         $is_valid = false;
-                        $error_reason = 'значення містить заборонені символи або невірний формат (пробіли/дефіси по краях)';
+                        $error_reason = $this->language->get('error_validation_pattern');
                     }
                 }
 
                 if ($is_valid && isset($rule['stop_words'])) {
                     if (in_array(mb_strtoupper($value), $rule['stop_words'])) {
                         $is_valid = false;
-                        $error_reason = 'виявлено заборонене стоп-слово: ' . $value;
+                        $error_reason = sprintf(
+                            $this->language->get('error_validation_stop_word'),
+                            $value
+                        );
                     }
                 }
 
                 if ($is_valid && isset($rule['max_len'])) {
                     if (mb_strlen($value) > $rule['max_len']) {
                         $is_valid = false;
-                        $error_reason = 'перевищено ліміт символів (max: ' . $rule['max_len'] . ')';
+                        $error_reason = sprintf(
+                            $this->language->get('error_validation_max_len'),
+                            $rule['max_len']
+                        );
                     }
                 }
             }
