@@ -49,6 +49,9 @@ $_['entry_refunded_status']       = '"Payment refunded" status';
 $_['entry_refund_fail_status']    = '"Refund error" status';
 $_['entry_confirmed_status']      = 'Confirmed Status';
 $_['entry_complete_status']       = 'Complete Status';
+$_['entry_preauth_exp_date']      = 'PREAUTH expiration period';
+$_['entry_preauth_status']        = '"PREAUTH authorized" status';
+$_['entry_completion_status']     = '"Completion trigger" status';
 
 // Help
 $_['help_service_code']           = 'Get serviceCode from JSC "BANK ALLIANCE"';
@@ -62,7 +65,10 @@ $_['help_error_status']           = 'Select the status that corresponds to "Fail
 $_['help_paid_status']            = 'Select the status that corresponds to "Complete"';
 $_['help_refunded_status']        = 'Select the status that corresponds to "Refunded"';
 $_['help_refund_fail_status']     = 'Select the status that corresponds to "Failed"';
-$_['help_hpp_type']               = 'Choose the HPP payment type from the two available PURCHASE or A2A.';
+$_['help_hpp_type']               = 'Choose the HPP payment type from the available options: PURCHASE, A2A or PREAUTH.';
+$_['help_preauth_exp_date']       = 'Select the authorization hold period for PREAUTH payments (min 2h, max 28d). A 30-second buffer is added automatically.';
+$_['help_preauth_status']         = 'Status set on the order after a successful PREAUTH authorization (funds are held, not yet captured)';
+$_['help_completion_status']      = 'When admin sets this status the held funds will be captured. Amount must be within ±20% of the original authorized amount.';
 
 // Button
 $_['button_save']                 = 'Save';
@@ -81,4 +87,9 @@ $_['error_permission']            = 'Warning: You do not have permission to modi
 $_['error_technical']             = 'Technical error occurred';
 $_['error_something_went_wrong']  = 'Something went wrong :(';
 $_['error_refund_not_allowed']    = 'Cannot process refund! Check the alliance.log error log.';
+$_['error_completion_amount']     = 'Warning: Order amount differs from the original authorized amount by more than 20%%. Completion is not allowed.';
+$_['error_completion_failed']     = 'Completion request failed. Check alliance.log for details.';
+$_['error_not_preauth_order']     = 'This order is not a PREAUTH order.';
+$_['button_confirm_payment']      = 'Confirm Payment';
+$_['text_completion_success']     = 'Payment successfully captured.';
 $_['text_alliance_operation_purchase_not_found'] = 'Purchase operation not found.';

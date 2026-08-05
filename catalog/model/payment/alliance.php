@@ -1,8 +1,18 @@
 <?php
+/**
+ * Copyright © 2026 Alliance Dgtl. https://alb.ua/uk
+ */
+
+declare(strict_types=1);
+
 namespace Opencart\Catalog\Model\Extension\Alliance\Payment;
 
 use Opencart\System\Helper\Alliance\Db\RefundHistory;
+use Opencart\System\Helper\Alliance\Ecom;
 
+/**
+ * Class Alliance.
+ */
 class Alliance extends \Opencart\System\Engine\Model
 {
     /**
@@ -28,23 +38,35 @@ class Alliance extends \Opencart\System\Engine\Model
         ];
     }
 
-    public function getAllianceOrder($hpp_order_id)
+    /**
+     * @param string $hpp_order_id
+     * @return array
+     */
+    public function getAllianceOrder(string $hpp_order_id): array
     {
-        $query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "alliance_checkout_integration_order` WHERE `hpp_order_id` = '" . $hpp_order_id . "'");
+        $query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "alliance_checkout_integration_order` WHERE `hpp_order_id` = '" . $this->db->escape($hpp_order_id) . "'");
 
         return $query->row;
     }
 
+    /**
+     * @param array $data
+     * @param int $order_id
+     * @return void
+     */
     public function saveAllianceOrder(array $data, int $order_id): void
     {
         $this->load->model('checkout/order');
 
-        if ($data['orderStatus'] == "PENDING" || $data['orderStatus'] == 'REQUIRED_3DS'){
-            $this->model_checkout_order->addHistory($order_id, $this->config->get("payment_alliance_pending_status"));
-        }
-
-        if ($data['orderStatus'] == "FAIL"){
-            $this->model_checkout_order->addHistory($order_id, $this->config->get("payment_alliance_error_status"));
+        if (!empty($data['hppPayType']) && $data['hppPayType'] === Ecom::HPP_PAY_TYPE_PREAUTH) {
+            $this->model_checkout_order->addHistory(
+                $order_id,
+                $this->config->get('payment_alliance_preauth_status')
+            );
+        } elseif ($data['orderStatus'] == 'PENDING' || $data['orderStatus'] == 'REQUIRED_3DS') {
+            $this->model_checkout_order->addHistory($order_id, $this->config->get('payment_alliance_pending_status'));
+        } elseif ($data['orderStatus'] == 'FAIL') {
+            $this->model_checkout_order->addHistory($order_id, $this->config->get('payment_alliance_error_status'));
         }
 
         $sql = "INSERT INTO `" . DB_PREFIX . "alliance_checkout_integration_order` SET";
@@ -68,7 +90,9 @@ class Alliance extends \Opencart\System\Engine\Model
         }
 
         if (!empty($data['coinAmount'])) {
-            $implode[] = "`coin_amount` = '" . (int) $data['coinAmount'] . "'";
+            $coinAmount = (int)$data['coinAmount'];
+            $implode[]  = "`coin_amount` = '" . $coinAmount . "'";
+            $implode[]  = "`original_authorized_amount` = '" . $coinAmount . "'";
         }
 
         if (!empty($data['hppPayType'])) {
@@ -93,27 +117,20 @@ class Alliance extends \Opencart\System\Engine\Model
         }
 
         if ($implode) {
-            $sql .= implode(", ", $implode);
+            $sql .= implode(', ', $implode);
         }
 
         $this->db->query($sql);
     }
 
+    /**
+     * @param array $data
+     * @param int $order_id
+     * @return void
+     */
     public function saveCallBack(array $data, int $order_id): void
     {
         $this->load->model('checkout/order');
-
-        if ($data['orderStatus'] == "PENDING" || $data['orderStatus'] == 'REQUIRED_3DS'){
-            $this->model_checkout_order->addHistory($order_id, $this->config->get("payment_alliance_pending_status"));
-        }
-
-        if ($data['orderStatus'] == "FAIL"){
-            $this->model_checkout_order->addHistory($order_id, $this->config->get("payment_alliance_error_status"));
-        }
-
-        if ($data['orderStatus'] == "SUCCESS"){
-            $this->model_checkout_order->addHistory($order_id, $this->config->get("payment_alliance_paid_status"));
-        }
 
         $data = $this->prepareOperations($data);
 
@@ -135,7 +152,7 @@ class Alliance extends \Opencart\System\Engine\Model
 
         $implode[] = "`updated_at` = '" . $this->db->escape(date('Y-m-d H:i:s')) . "'";
         $implode[] = "`callback_data` = '" . $this->db->escape(json_encode($data)) . "'";
-        $implode[] = "`is_callback_returned` = '" . $this->db->escape(1) . "'";
+        $implode[] = "`is_callback_returned` = '1'";
 
         if ($implode) {
             $sql .= implode(', ', $implode);
@@ -150,6 +167,11 @@ class Alliance extends \Opencart\System\Engine\Model
         }
     }
 
+    /**
+     * @param array $operations
+     * @param int $order_id
+     * @return void
+     */
     private function updateRefundOperation(array $operations, int $order_id): void
     {
         $this->load->helper('extension/alliance/alliance/refund/refundhistory');
@@ -165,6 +187,10 @@ class Alliance extends \Opencart\System\Engine\Model
         }
     }
 
+    /**
+     * @param array $data
+     * @return array
+     */
     private function prepareOperations(array $data)
     {
         $operations = [];
@@ -202,6 +228,10 @@ class Alliance extends \Opencart\System\Engine\Model
         return $data;
     }
 
+    /**
+     * @param object $session
+     * @return void
+     */
     public function clearCart(object $session): void
     {
         $this->cart->clear();
@@ -217,6 +247,9 @@ class Alliance extends \Opencart\System\Engine\Model
         unset($session->data['reward']);
     }
 
+    /**
+     * @return mixed
+     */
     public function cartTotalPrice()
     {
         $this->load->model('checkout/cart');

@@ -62,6 +62,9 @@ $_['entry_refunded_status']       = 'Статус "оплату повернен
 $_['entry_refund_fail_status']    = 'Статус "помилка повернення оплати"';
 $_['entry_confirmed_status']      = 'Статус підтвердження';
 $_['entry_complete_status']       = 'Статус завершення';
+$_['entry_preauth_exp_date']      = 'Термін дії PREAUTH авторизації';
+$_['entry_preauth_status']        = 'Статус "PREAUTH авторизовано"';
+$_['entry_completion_status']     = 'Статус для підтвердження списання';
 
 // Help
 $_['help_service_code']           = 'Отримайте serviceCode в АТ "БАНК АЛЬЯНС"';
@@ -75,7 +78,10 @@ $_['help_error_status']           = 'Виберіть статус, який в�
 $_['help_paid_status']            = 'Виберіть статус, який відповідає "Complete" у вашому магазині';
 $_['help_refunded_status']        = 'Виберіть статус, який відповідає "Refunded" у вашому магазині';
 $_['help_refund_fail_status']     = 'Виберіть статус, який відповідає "Failed" у вашому магазині';
-$_['help_hpp_type']               = 'Виберіть тип HPP платежу з двох доступних PURCHASE або A2A.';
+$_['help_hpp_type']               = 'Виберіть тип HPP платежу з доступних варіантів: PURCHASE, A2A або PREAUTH.';
+$_['help_preauth_exp_date']       = 'Оберіть термін заморозки коштів для PREAUTH платежів (мін. 2 год, макс. 28 днів). Автоматично додається буфер 30 секунд.';
+$_['help_preauth_status']         = 'Статус, який встановлюється після успішної PREAUTH авторизації (кошти заморожені, але не списані)';
+$_['help_completion_status']      = 'Коли адміністратор встановлює цей статус — кошти списуються. Сума повинна відрізнятись не більше ніж на ±20% від авторизованої суми.';
 
 // Button
 $_['button_save']                 = 'Зберегти';
@@ -94,4 +100,9 @@ $_['error_permission']            = 'Увага: У вас немає дозво
 $_['error_technical']             = 'Сталась технічна помилка';
 $_['error_something_went_wrong']  = 'Щось пішло не так :(';
 $_['error_refund_not_allowed']    = 'Не можна зробити повернення! Дивіться журнал помилок alliance.log.';
+$_['error_completion_amount']     = 'Увага: Сума замовлення відрізняється від авторизованої суми більше ніж на 20%%. Списання коштів неможливе.';
+$_['error_completion_failed']     = 'Запит на списання коштів не вдався. Перевірте журнал помилок alliance.log.';
+$_['error_not_preauth_order']     = 'Це замовлення не є PREAUTH замовленням.';
+$_['button_confirm_payment']      = 'Підтвердити оплату';
+$_['text_completion_success']     = 'Оплату успішно підтверджено.';
 $_['text_alliance_operation_purchase_not_found'] = 'Не знайдено операції купівлі.';

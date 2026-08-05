@@ -53,9 +53,9 @@ class Refund extends Model
 
         $data = [];
         if (!empty($orderId)) {
-            $allianceOrderCallBack = $this->model_extension_alliance_payment_alliance
-                ->getAllianceOrderCallback($orderId);
             $allianceOrder = $this->model_extension_alliance_payment_alliance->getAllianceOrder($orderId);
+            $allianceOrderCallBack = !empty($allianceOrder['callback_data'])
+                ? json_decode($allianceOrder['callback_data'], true) : [];
             $refundData = [];
             $purchaseOperation = [];
             try {
@@ -190,11 +190,15 @@ class Refund extends Model
     {
         $purchaseOperation = [];
         $operationTypes = [
-            'PURCHASE',
-            'ACCOUNT_2_ACCOUNT'
+            Ecom::OPERATION_TYPE_PURCHASE,
+            Ecom::OPERATION_TYPE_A2A,
+            Ecom::OPERATION_TYPE_COMPLETION
         ];
 
-        if (!empty($orderCallBackData['operation'])) {
+        if (!empty($orderCallBackData['operation'])
+            && !empty($orderCallBackData['type'])
+            && in_array($orderCallBackData['type'], $operationTypes)
+        ) {
             $purchaseOperation = $orderCallBackData['operation'];
         } elseif (!empty($orderCallBackData['operations'])) {
             foreach ($orderCallBackData['operations'] as $operation) {

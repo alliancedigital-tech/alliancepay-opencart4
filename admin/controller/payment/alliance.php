@@ -17,35 +17,43 @@ use Opencart\System\Library\Extension\Alliance\Http\ResponseDecoder;
  */
 class Alliance extends \Opencart\System\Engine\Controller
 {
-    public $version = '1.2.0';
+    public $version = '1.3.0';
+
     private array $events = [
         [
             'description' => 'Order info',
-            'trigger'     => 'admin/view/sale/order_info/before',
-            'action'      => 'extension/alliance/payment/alliance|operationsEvent',
-            'event_code'  => 'alliance_operations',
-            'sort_order'  => 1,
+            'trigger' => 'admin/view/sale/order_info/before',
+            'action' => 'extension/alliance/payment/alliance|operationsEvent',
+            'event_code' => 'alliance_operations',
+            'sort_order' => 1,
         ],
         [
             'description' => 'Fix session order id if its empty after addOrder method',
-            'trigger'     => 'catalog/model/checkout/order/addOrder/after',
-            'action'      => 'extension/alliance/payment/event/fix_session_order_id|afterAddOrder',
-            'event_code'  => 'alliance_fix_session_order_id',
-            'sort_order'  => 0,
+            'trigger' => 'catalog/model/checkout/order/addOrder/after',
+            'action' => 'extension/alliance/payment/event/fix_session_order_id|afterAddOrder',
+            'event_code' => 'alliance_fix_session_order_id',
+            'sort_order' => 0,
         ],
         [
             'description' => 'Add refund button to order info',
-            'trigger'     => 'admin/view/sale/order_info/after',
-            'action'      => 'extension/alliance/alliance/refund|injectRefundButton',
-            'event_code'  => 'alliance_add_refund_button_order_info',
-            'sort_order'  => 2,
+            'trigger' => 'admin/view/sale/order_info/after',
+            'action' => 'extension/alliance/alliance/refund|injectRefundButton',
+            'event_code' => 'alliance_add_refund_button_order_info',
+            'sort_order' => 2,
+        ],
+        [
+            'description' => 'Add completion button to order info',
+            'trigger' => 'admin/view/sale/order_info/after',
+            'action' => 'extension/alliance/payment/alliance|injectCompletionButton',
+            'event_code' => 'alliance_add_completion_button_order_info',
+            'sort_order' => 3,
         ],
         [
             'description' => 'Add partial refund button to order info',
-            'trigger'     => 'admin/view/sale/order_info/after',
-            'action'      => 'extension/alliance/event/order|orderInfoAfter',
-            'event_code'  => 'alliance_order_info_partial_refund',
-            'sort_order'  => 1,
+            'trigger' => 'admin/view/sale/order_info/after',
+            'action' => 'extension/alliance/event/order|orderInfoAfter',
+            'event_code' => 'alliance_order_info_partial_refund',
+            'sort_order' => 1,
         ],
     ];
 
@@ -123,6 +131,9 @@ class Alliance extends \Opencart\System\Engine\Controller
             'payment_alliance_fail_url' => $catalog_url . 'index.php?route=checkout/failure',
             'payment_alliance_debug' => '0',
             'payment_alliance_version' => '0.0.5',
+            'payment_alliance_preauth_status' => $default_pending,
+            'payment_alliance_completion_status' => $default_paid,
+            'payment_alliance_preauth_exp_date' => '2h',
         ];
 
         $this->model_user_user_group->addPermission(
@@ -217,9 +228,11 @@ class Alliance extends \Opencart\System\Engine\Controller
 
     public function operationsEvent(&$route, &$data, &$code): void
     {
+        $this->load->language('extension/alliance/payment/alliance');
         $this->load->model('extension/alliance/payment/alliance');
         $this->load->model('sale/order');
         $this->load->helper('extension/alliance/alliance/config');
+        $this->load->helper('extension/alliance/alliance/ecom');
         $alliance_order = $this->model_extension_alliance_payment_alliance->getAllianceOrder($data['order_id']);
         $order_info = $this->model_sale_order->getOrder($data['order_id']);
 
@@ -227,6 +240,18 @@ class Alliance extends \Opencart\System\Engine\Controller
             && !empty($alliance_order)
         ) {
             $data['text_form'] .= ' ' . $this->getCheckStatusButtonHtml($data);
+        }
+    }
+
+    public function injectCompletionButton(string &$route, array &$data, mixed &$output)
+    {
+        $this->load->language('extension/alliance/payment/alliance');
+        $this->load->model('extension/alliance/payment/alliance');
+        $this->load->helper('extension/alliance/alliance/ecom');
+        $alliance_order = $this->model_extension_alliance_payment_alliance->getAllianceOrder($data['order_id']);
+
+        if (($alliance_order['hpp_pay_type'] ?? '') === Ecom::HPP_PAY_TYPE_PREAUTH) {
+            $output = str_replace('</body>', $this->getConfirmPaymentButtonHtml((int)$data['order_id']) . '</body>', $output);
         }
     }
 
@@ -257,12 +282,13 @@ class Alliance extends \Opencart\System\Engine\Controller
         $data['back'] = $referer;
 
         $alliance_order = $this->model_extension_alliance_payment_alliance->getAllianceOrder($order_id);
-        $order_callback = $this->model_extension_alliance_payment_alliance->getAllianceOrderCallback($order_id);
+        $order_callback = !empty($alliance_order['callback_data'])
+            ? json_decode($alliance_order['callback_data'], true) : [];
 
         if (!empty($alliance_order) && !empty($order_callback)) {
             $this->response->setOutput($this->load->view('extension/alliance/payment/operation_info',
                 $this->model_extension_alliance_payment_alliance->fillOperationStatusData($data, $order_callback, false,
-                $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id))));
+                    $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id))));
             return true;
         }
 
@@ -280,9 +306,95 @@ class Alliance extends \Opencart\System\Engine\Controller
 
         $this->response->setOutput($this->load->view('extension/alliance/payment/operation_info',
             $this->model_extension_alliance_payment_alliance->fillOperationStatusData($data, $e_com_response, false,
-            $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id))));
+                $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id))));
 
         return true;
+    }
+
+    /**
+     * @return void
+     */
+    public function executePreAuthCompletion(): void
+    {
+        $this->load->language('extension/alliance/payment/alliance');
+        $this->load->model('extension/alliance/payment/alliance');
+        $this->load->model('sale/order');
+        $this->load->helper('extension/alliance/alliance/ecom');
+        $this->load->helper('extension/alliance/alliance/config');
+
+        $json = [];
+        $order_id = (int)($this->request->get['order_id'] ?? 0);
+
+        if (!$order_id) {
+            $json['success'] = false;
+            $json['message'] = $this->language->get('error_something_went_wrong');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $alliance_order = $this->model_extension_alliance_payment_alliance->getAllianceOrder($order_id);
+
+        if (empty($alliance_order) || ($alliance_order['hpp_pay_type'] ?? '') !== Ecom::HPP_PAY_TYPE_PREAUTH) {
+            $json['success'] = false;
+            $json['message'] = $this->language->get('error_not_preauth_order');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $order = $this->model_sale_order->getOrder($order_id);
+        $current_coin_amount = (int)round((float)$order['total'] * 100);
+        $original_amount = (int)($alliance_order['original_authorized_amount'] ?? 0);
+
+        if ($original_amount === 0) {
+            $json['success'] = false;
+            $json['message'] = $this->language->get('error_completion_amount');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $min_allowed = (int)floor($original_amount * (1 - Config::PREAUTH_AMOUNT_TOLERANCE));
+        $max_allowed = (int)ceil($original_amount * (1 + Config::PREAUTH_AMOUNT_TOLERANCE));
+
+        if ($current_coin_amount < $min_allowed || $current_coin_amount > $max_allowed) {
+            $json['success'] = false;
+            $json['message'] = $this->language->get('error_completion_amount');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        try {
+            $ecom = new Ecom($this->registry);
+            $jwe_token = $ecom->authorizeByVirtualDevice($this->config->get('payment_alliance_service_code_id'));
+            $decrypt_auth = $ecom->decryptResponse($jwe_token);
+
+            $completion_data = [
+                'merchant_id' => $alliance_order['merchant_id'],
+                'operation_id' => $alliance_order['operation_id'],
+                'coin_amount' => (string)$current_coin_amount,
+            ];
+
+            $result = $ecom->proceedCompletion($decrypt_auth, $completion_data);
+
+            if (!empty($result['msgType']) && $result['msgType'] === 'ERROR') {
+                throw new \Exception(
+                    $this->language->get('error_completion_failed') . ': ' . ($result['msgText'] ?? '')
+                );
+            }
+
+            $json['success'] = true;
+            $json['message'] = $this->language->get('text_completion_success');
+        } catch (\Throwable $e) {
+            $this->log->write('[Alliance PREAUTH completion] order_id=' . $order_id . ' ' . $e->getMessage());
+            $json['success'] = false;
+            $json['message'] = $this->language->get('error_something_went_wrong');
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
     }
 
     /**
@@ -309,5 +421,56 @@ class Alliance extends \Opencart\System\Engine\Controller
             . "&order_id="
             . $data['order_id']
             . ">" . $this->language->get('button_check_status') . "</a>";
+    }
+
+    /**
+     * @param int $order_id
+     * @return string
+     */
+    private function getConfirmPaymentButtonHtml(int $order_id): string
+    {
+        $completion_url = $this->url->link(
+            'extension/alliance/payment/alliance|executePreAuthCompletion',
+            'user_token=' . $this->getUserToken() . '&order_id=' . $order_id,
+            true
+        );
+
+        $button_label   = json_encode($this->language->get('button_confirm_payment'), JSON_UNESCAPED_UNICODE);
+        $error_fallback = json_encode($this->language->get('error_something_went_wrong'), JSON_UNESCAPED_UNICODE);
+
+        return <<<HTML
+        <script>
+        (function () {
+            document.addEventListener('DOMContentLoaded', function () {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-warning';
+                btn.style.cssText = 'margin-right:5px;';
+                btn.innerHTML = {$button_label};
+                btn.onclick = function () {
+                    btn.disabled = true;
+                    fetch('{$completion_url}')
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data.success) {
+                                alert(data.message);
+                            } else {
+                                alert(data.message || {$error_fallback});
+                                btn.disabled = false;
+                            }
+                            location.reload();
+                        })
+                        .catch(function () {
+                            btn.disabled = false;
+                        });
+                };
+                var target = document.querySelector('#button-partial-return');
+                if (target) {
+                    target.after(btn);
+                }
+            });
+        })();
+        </script>
+        HTML;
     }
 }

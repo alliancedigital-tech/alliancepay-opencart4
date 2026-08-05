@@ -140,6 +140,24 @@ class Data extends \Opencart\System\Engine\Model
             $request->post['payment_alliance_refund_fail_status']
             ?? $config->get('payment_alliance_refund_fail_status');
 
+        $data['payment_alliance_preauth_status'] =
+            $request->post['payment_alliance_preauth_status']
+            ?? $config->get('payment_alliance_preauth_status');
+
+        $data['payment_alliance_completion_status'] =
+            $request->post['payment_alliance_completion_status']
+            ?? $config->get('payment_alliance_completion_status');
+
+        $data['payment_alliance_preauth_exp_date'] =
+            $request->post['payment_alliance_preauth_exp_date']
+            ?? $config->get('payment_alliance_preauth_exp_date');
+
+        $data['entry_preauth_exp_date'] = $this->language->get('entry_preauth_exp_date');
+        $data['help_preauth_exp_date'] = $this->language->get('help_preauth_exp_date');
+        $data['entry_preauth_status'] = $this->language->get('entry_preauth_status');
+        $data['help_preauth_status'] = $this->language->get('help_preauth_status');
+        $data['entry_completion_status'] = $this->language->get('entry_completion_status');
+        $data['help_completion_status'] = $this->language->get('help_completion_status');
 
         $data["url_clear"] = $this->url->link(
             "extension/alliance/payment/alliance/clear",

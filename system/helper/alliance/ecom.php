@@ -6,6 +6,7 @@ use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Opencart\System\Engine\Registry;
+use Opencart\System\Helper\Alliance\Config;
 use Opencart\System\Helper\Alliance\log\AllianceLogger;
 use Psr\Log\LogLevel;
 use SimpleJWT\JWE;
@@ -18,98 +19,118 @@ use SimpleJWT\Keys\KeySet;
 class Ecom
 {
     const AUTHORIZE_VIRTUAL_DEVICE = 'api-gateway/authorize_virtual_device';
+
     const CREATE_ORDER = 'ecom/execute_request/hpp/v1/create-order';
+
     const CREATE_REFUND = 'ecom/execute_request/payments/v3/refund';
+
+    const COMPLETION = 'ecom/execute_request/payments/v1/completion';
 
     const CHECK_OPERATIONS = 'ecom/execute_request/hpp/v1/operations';
 
     const NOTIFICATION_URL_ROUTE = 'extension/alliance/payment/alliance|notifyCallback';
 
     const METHOD_POST = 'POST';
+
     const ALGORITHM = 'ECDH-ES+A256KW';
+
     const ENCRYPTION = 'A256GCM';
 
-    const HPP_PAY_TYPE_PURCHASE  = 'PURCHASE';
-    const HPP_PAY_TYPE_A2A       = 'A2A';
-    const A2A_DIRECT_TYPE        = 'BANK_LINK';
+    const HPP_PAY_TYPE_PURCHASE = 'PURCHASE';
+
+    const HPP_PAY_TYPE_A2A = 'A2A';
+
+    const HPP_PAY_TYPE_PREAUTH = 'PREAUTH';
+
+    const A2A_DIRECT_TYPE = 'BANK_LINK';
+
     const A2A_PRIORITY_BANK_CODE = 'ALL_BANKS';
 
     const OPERATION_TYPE_PURCHASE = 'PURCHASE';
-    const OPERATION_TYPE_A2A      = 'ACCOUNT_2_ACCOUNT';
-    const OPERATION_TYPE_REFUND   = 'REFUND';
+
+    const OPERATION_TYPE_A2A = 'ACCOUNT_2_ACCOUNT';
+
+    const OPERATION_TYPE_REFUND = 'REFUND';
+
+    const OPERATION_TYPE_PREAUTH = 'PREAUTH';
+    const OPERATION_TYPE_COMPLETION = 'COMPLETION';
 
     private Datetime $dateTime;
+
     private Client $client;
+
     private ?object $config;
+
     private object $language;
+
     private $logger;
 
     private AllianceCountryCodeProvider $countryCodeProvider;
 
     private $validationRules = [
         'senderCustomerId' => [
-            'type'     => 'string',
-            'max_len'  => 255,
+            'type' => 'string',
+            'max_len' => 255,
             'required' => true,
         ],
         'senderFirstName' => [
-            'type'           => 'string',
-            'max_len'        => 30,
-            'required'       => false,
+            'type' => 'string',
+            'max_len' => 30,
+            'required' => false,
             'no_only_digits' => true,
-            'pattern'        => '/^[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ]([a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ\s\-\']*[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ])?$/u',
-            'stop_words'     => ['NULL', '3D SECURE', 'SURNAME', 'CARDHOLDER', 'UNKNOWN']
+            'pattern' => '/^[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ]([a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ\s\-\']*[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ])?$/u',
+            'stop_words' => ['NULL', '3D SECURE', 'SURNAME', 'CARDHOLDER', 'UNKNOWN']
         ],
         'senderLastName' => [
-            'type'           => 'string',
-            'max_len'        => 30,
-            'required'       => false,
+            'type' => 'string',
+            'max_len' => 30,
+            'required' => false,
             'no_only_digits' => true,
-            'pattern'        => '/^[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ]([a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ\s\-\']*[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ])?$/u'
+            'pattern' => '/^[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ]([a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ\s\-\']*[a-zA-Z0-9а-яА-ЯёЁіІїЇєЄґҐ])?$/u'
         ],
         'senderEmail' => [
-            'type'     => 'string',
-            'max_len'  => 256,
+            'type' => 'string',
+            'max_len' => 256,
             'required' => false
         ],
         'senderCountry' => [
-            'type'     => 'string',
-            'max_len'  => 3,
+            'type' => 'string',
+            'max_len' => 3,
             'required' => false
         ],
         'senderRegion' => [
-            'type'     => 'string',
-            'max_len'  => 255,
+            'type' => 'string',
+            'max_len' => 255,
             'required' => false
         ],
         'senderCity' => [
-            'type'     => 'string',
-            'max_len'  => 25,
+            'type' => 'string',
+            'max_len' => 25,
             'required' => false
         ],
         'senderStreet' => [
-            'type'     => 'string',
-            'max_len'  => 35,
+            'type' => 'string',
+            'max_len' => 35,
             'required' => false
         ],
         'senderAdditionalAddress' => [
-            'type'     => 'string',
-            'max_len'  => 255,
+            'type' => 'string',
+            'max_len' => 255,
             'required' => false
         ],
         'senderIp' => [
-            'type'     => 'string',
-            'max_len'  => 50,
+            'type' => 'string',
+            'max_len' => 50,
             'required' => false
         ],
         'senderPhone' => [
-            'type'     => 'numeric_string',
-            'max_len'  => 20,
+            'type' => 'numeric_string',
+            'max_len' => 20,
             'required' => false
         ],
         'senderZipCode' => [
-            'type'     => 'string',
-            'max_len'  => 50,
+            'type' => 'string',
+            'max_len' => 50,
             'required' => false
         ],
     ];
@@ -123,6 +144,7 @@ class Ecom
         $loader->helper('extension/alliance/alliance/datetime');
         $loader->helper('extension/alliance/alliance/log/alliancelogger');
         $loader->helper('extension/alliance/alliance/alliancecountrycodeprovider');
+        $loader->helper('extension/alliance/alliance/config');
         $this->logger = new AllianceLogger($registry);
         $this->dateTime = new Datetime();
         $this->client = new Client(['base_uri' => $this->config->get('payment_alliance_url')]);
@@ -145,7 +167,7 @@ class Ecom
             $response = $this->client->request(self::METHOD_POST, self::AUTHORIZE_VIRTUAL_DEVICE, [
                 'headers' => $this->getHeaders(),
                 'json' => [
-                    'serviceCode' =>  $payment_alliance_service_code_id,
+                    'serviceCode' => $payment_alliance_service_code_id,
                 ]
             ]);
         } catch (GuzzleException $e) {
@@ -162,6 +184,10 @@ class Ecom
         return $contents['jwe'];
     }
 
+    /**
+     * @param string $jwe_token
+     * @return array
+     */
     public function decryptResponse(string $jwe_token): array
     {
         $set = new KeySet();
@@ -182,9 +208,14 @@ class Ecom
 
         $jwe_decrypted = JWE::decrypt($jwe_token, $set, self::ALGORITHM);
 
-        return (array) json_decode($jwe_decrypted->getPlaintext());
+        return (array)json_decode($jwe_decrypted->getPlaintext());
     }
 
+    /**
+     * @param array $publicServerKey
+     * @param string $payload
+     * @return string
+     */
     public function encryptRequest(array $publicServerKey, string $payload): string
     {
         $headers = [
@@ -275,6 +306,51 @@ class Ecom
     }
 
     /**
+     * @param array $decrypt_auth
+     * @param array $completionData
+     * @return array
+     * @throws Exception
+     */
+    public function proceedCompletion(array $decrypt_auth, array $completionData): array
+    {
+        $completionResult = [];
+        try {
+            $notificationUrl = $this->getNotificationUrl();
+            $serverPublicKey = json_decode(json_encode($this->getServerPublicKey($decrypt_auth)), true);
+            $headers = $this->getHeaders($decrypt_auth, 'text/plain');
+
+            if (!empty($serverPublicKey)) {
+                $payload = json_encode([
+                    'merchantRequestId' => uniqid(),
+                    'merchantId' => (string)($completionData['merchant_id'] ?? ''),
+                    'originalOperationId' => (string)($completionData['operation_id'] ?? ''),
+                    'coinAmount' => (string)($completionData['coin_amount'] ?? ''),
+                    'date' => $this->dateTime::getSiteDateTime($this->config),
+                    'notificationUrl' => $notificationUrl,
+                ], JSON_PRETTY_PRINT);
+
+                $encryptedBody = $this->encryptRequest($serverPublicKey, $payload);
+
+                $response = $this->client->request(self::METHOD_POST, self::COMPLETION, [
+                    'headers' => $headers,
+                    'body' => $encryptedBody,
+                ]);
+
+                $contents = json_decode($response->getBody()->getContents(), true);
+
+                if (isset($contents['jwe'])) {
+                    $completionResult = $this->decryptResponse($contents['jwe']);
+                }
+            }
+        } catch (GuzzleException $e) {
+            $this->logger->log('Cannot proceed completion: ' . $e->getMessage(), LogLevel::ERROR);
+            throw new Exception($this->language->get('error_completion_failed'));
+        }
+
+        return $completionResult;
+    }
+
+    /**
      * @throws Exception
      */
     public function checkOperationStatus(array $decrypt_auth, string $hpp_order_id)
@@ -350,28 +426,38 @@ class Ecom
         $hppPayType = $config->get('payment_alliance_hpp_type') ?? self::HPP_PAY_TYPE_PURCHASE;
 
         $paymentData = [
-            'merchantId'        => $config->get('payment_alliance_merchant_id'),
-            'hppPayType'        => $hppPayType,
-            'failUrl'           => $config->get('payment_alliance_fail_url'),
-            'successUrl'        => $config->get('payment_alliance_success_url'),
+            'merchantId' => $config->get('payment_alliance_merchant_id'),
+            'hppPayType' => $hppPayType,
+            'failUrl' => $config->get('payment_alliance_fail_url'),
+            'successUrl' => $config->get('payment_alliance_success_url'),
             'merchantRequestId' => uniqid(),
-            'statusPageType'    => 'STATUS_TIMER_PAGE',
-            'paymentMethods'    => ['CARD', 'APPLE_PAY', 'GOOGLE_PAY'],
-            'customerData'      => $this->validateCustomerData($customerData, $this->validationRules),
-            'coinAmount'        => (int)round($total_price * 100),
-            'notificationUrl'   => $url,
+            'statusPageType' => 'STATUS_TIMER_PAGE',
+            'paymentMethods' => ['CARD', 'APPLE_PAY', 'GOOGLE_PAY'],
+            'customerData' => $this->validateCustomerData($customerData, $this->validationRules),
+            'coinAmount' => (int)round($total_price * 100),
+            'notificationUrl' => $url,
         ];
 
         if ($hppPayType === self::HPP_PAY_TYPE_A2A) {
-            $paymentData['hppPaymentType']    = self::HPP_PAY_TYPE_A2A;
-            $paymentData['directType']        = self::A2A_DIRECT_TYPE;
-            $paymentData['priorityBankCode']  = self::A2A_PRIORITY_BANK_CODE;
-            $paymentData['merchantComment']   = 'Payment for order #' . ($orderInfo['order_id'] ?? '');
+            $paymentData['hppPaymentType'] = self::HPP_PAY_TYPE_A2A;
+            $paymentData['directType'] = self::A2A_DIRECT_TYPE;
+            $paymentData['priorityBankCode'] = self::A2A_PRIORITY_BANK_CODE;
+            $paymentData['merchantComment'] = 'Payment for order #' . ($orderInfo['order_id'] ?? '');
+        }
+
+        if ($hppPayType === self::HPP_PAY_TYPE_PREAUTH) {
+            $preAuthExpDateOption = $config->get('payment_alliance_preauth_exp_date') ?? '2h';
+            $paymentData['preAuthExpDate'] = $this->calculatePreAuthExpDate($preAuthExpDateOption);
         }
 
         return $paymentData;
     }
 
+    /**
+     * @param string $url
+     * @param array $callBackData
+     * @return array
+     */
     private function collectRefundData(string $url, array $callBackData): array
     {
         return [
@@ -380,10 +466,41 @@ class Ecom
             'merchantId' => (string)$callBackData['merchant_id'] ?? '',
             'coinAmount' => (string)$callBackData['coin_amount'] ?? '',
             'notificationUrl' => $url,
-            'date' => $this->dateTime::getSiteDateTime($this->config)
+            'date' => $this->dateTime::getSiteDateTime($this->config),
         ];
     }
 
+    /**
+     * @param string $option
+     * @return string
+     * @throws \Exception
+     */
+    private function calculatePreAuthExpDate(string $option): string
+    {
+        $timezone = $this->config->get('config_timezone') ?: 'UTC';
+        $datetime = new \DateTime('now', new \DateTimeZone($timezone));
+
+        // Parse option: digit(s) + unit letter (h = hours, d = days)
+        if (preg_match('/^(\d+)([hd])$/', $option, $matches)) {
+            $amount = (int)$matches[1];
+            $unit = $matches[2] === 'h' ? 'hours' : 'days';
+            $datetime->modify('+' . $amount . ' ' . $unit);
+        } else {
+            $datetime->modify('+2 hours');
+        }
+
+        $datetime->modify('+' . \Opencart\System\Helper\Alliance\Config::PREAUTH_EXP_DATE_BUFFER_SECONDS . ' seconds');
+
+        $formatted = $datetime->format('Y-m-d H:i:s.vP');
+
+        return preg_replace('/(\.\d{2})\d/', '$1', $formatted);
+    }
+
+    /**
+     * @param array $decrypt_auth
+     * @param $contentType
+     * @return array
+     */
     private function getHeaders(array $decrypt_auth = [], $contentType = 'application/json'): array
     {
         $headers["Content-Type"] = $contentType;
@@ -411,6 +528,10 @@ class Ecom
         return rtrim($baseUrl, '/') . '/index.php?route=' . self::NOTIFICATION_URL_ROUTE;
     }
 
+    /**
+     * @param array $decrypt_auth
+     * @return mixed|null
+     */
     private function getServerPublicKey(array $decrypt_auth = [])
     {
         return $decrypt_auth['serverPublic'] ?? null;

@@ -59,37 +59,42 @@ class Alliance extends \Opencart\System\Engine\Controller
             return false;
         }
 
-        $hppPayType = $request_data['hppPayType'] ?? '';
         $callbackOperation = $this->getCallbackOperation($request_data);
-        $isRefund = !empty($callbackOperation) && $callbackOperation['type'] === Ecom::OPERATION_TYPE_REFUND;
-        $hppTypes = [
-            Ecom::HPP_PAY_TYPE_PURCHASE,
-            Ecom::HPP_PAY_TYPE_A2A
-        ];
 
-        if (in_array($hppPayType, $hppTypes) && !$isRefund) {
-            $operationStatus = $this->getOperationStatus($callbackOperation);
-            $status = !empty($operationStatus) ? $operationStatus : $request_data['orderStatus'];
-        } elseif ($isRefund) {
-            $status = $callbackOperation['status'] ?? '';
-        } else {
-            $status = '';
+        if (!empty($callbackOperation) && !empty($callbackOperation['type'])) {
+            $isRefund = $callbackOperation['type'] === Ecom::OPERATION_TYPE_REFUND;
+            $purchaseOperationTypes = [
+                Ecom::OPERATION_TYPE_PURCHASE,
+                Ecom::OPERATION_TYPE_A2A,
+                Ecom::OPERATION_TYPE_COMPLETION
+            ];
+
+            if (in_array($callbackOperation['type'], $purchaseOperationTypes) && !$isRefund) {
+                $operationStatus = $this->getOperationStatus($callbackOperation);
+                $status = !empty($operationStatus) ? $operationStatus : $request_data['orderStatus'];
+            } elseif ($isRefund) {
+                $status = $callbackOperation['status'] ?? '';
+            } else {
+                $status = '';
+            }
+
+            if (!$isRefund) {
+                $request_data['operationId'] = $this->getPurchaseOperationId($callbackOperation);
+            }
+
+            if ($status !== '' && !$isRefund && $callbackOperation['type'] !== Ecom::OPERATION_TYPE_PREAUTH) {
+                $this->handleOrderStatusChange($status, $alliance_order, $order);
+            }
+
+            $this->model_extension_alliance_payment_alliance->saveCallBack(
+                $request_data,
+                $alliance_order['order_id']
+            );
+
+            return true;
         }
 
-        if (!empty($callbackOperation) && !$isRefund) {
-            $request_data['operationId'] = $this->getPurchaseOperationId($callbackOperation);
-        }
-
-        if ($status !== '' && !$isRefund) {
-            $this->handleOrderStatusChange($status, $alliance_order, $order);
-        }
-
-        $this->model_extension_alliance_payment_alliance->saveCallBack(
-            $request_data,
-            $alliance_order['order_id']
-        );
-
-        return true;
+        return false;
     }
 
     /**
@@ -143,7 +148,9 @@ class Alliance extends \Opencart\System\Engine\Controller
     {
         $purchaseOperationTypes = [
             Ecom::OPERATION_TYPE_PURCHASE,
-            Ecom::OPERATION_TYPE_A2A
+            Ecom::OPERATION_TYPE_A2A,
+            Ecom::OPERATION_TYPE_PREAUTH,
+            Ecom::OPERATION_TYPE_COMPLETION
         ];
 
         if (!empty($callbackOperation['operationId'])
@@ -165,6 +172,8 @@ class Alliance extends \Opencart\System\Engine\Controller
         $callbackOperationTypes = [
             Ecom::OPERATION_TYPE_PURCHASE,
             Ecom::OPERATION_TYPE_A2A,
+            Ecom::OPERATION_TYPE_PREAUTH,
+            Ecom::OPERATION_TYPE_COMPLETION,
             Ecom::OPERATION_TYPE_REFUND
         ];
 
