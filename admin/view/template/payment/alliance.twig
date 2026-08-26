@@ -188,6 +188,11 @@
               </select>
             </div>
             <div class="form-text">{{ help_hpp_type }}</div>
+            <div id="a2a-currency-warning"
+                 class="alert alert-warning mt-2"
+                 style="{{ (payment_alliance_hpp_type == 'A2A' and config_currency != 'UAH') ? '' : 'display:none' }}">
+              {{ a2a_uah_warning }}
+            </div>
           </div>
 
           <div id="preauth-expdate-block" class="row mb-3" style="{{ payment_alliance_hpp_type == 'PREAUTH' ? '' : 'display:none' }}">
@@ -469,12 +474,19 @@
   }
 </style>
 <script>
+  var allianceStoreCurrency = '{{ config_currency }}';
+
   function allianceTogglePreAuth(value) {
     var block = document.getElementById('preauth-expdate-block');
     if (block) {
       block.style.display = (value === 'PREAUTH') ? '' : 'none';
     }
+    var warning = document.getElementById('a2a-currency-warning');
+    if (warning) {
+      warning.style.display = (value === 'A2A' && allianceStoreCurrency !== 'UAH') ? '' : 'none';
+    }
   }
+
   document.addEventListener('DOMContentLoaded', function () {
     var select = document.getElementById('input-hpp-type');
     if (select) {

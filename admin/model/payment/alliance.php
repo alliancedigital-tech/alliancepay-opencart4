@@ -55,6 +55,7 @@ class Alliance extends \Opencart\System\Engine\Model
         array $e_com_response,
         bool  $is_error,
         bool  $isRefunded = false,
+        array $allianceOrder = [],
     ): array
     {
         $data['is_error'] = $is_error;
@@ -67,6 +68,26 @@ class Alliance extends \Opencart\System\Engine\Model
             } else {
                 $data['is_refund'] = $isRefunded;
                 $data['coin_amount'] = $this->convertCoinAmount($amount);
+
+                $conversionRate = (float)($allianceOrder['conversion_rate'] ?? 0);
+                $currencyCode   = (int)($allianceOrder['currency_code'] ?? 0);
+                $currencyMap    = [980 => 'UAH', 840 => 'USD', 978 => 'EUR'];
+                $currencyName   = $currencyMap[$currencyCode] ?? 'UAH';
+
+                $amountInUah = $amount / 100;
+
+                if ($conversionRate > 0 && $currencyName !== 'UAH') {
+                    $data['has_currency_conversion'] = true;
+                    $data['coin_amount_uah'] = number_format($amountInUah, 2, ',', ' ') . ' UAH';
+                    $data['coin_amount_currency'] = number_format($amountInUah / $conversionRate, 2, ',', ' ') . ' ' . $currencyName;
+                    $data['currency_name'] = $currencyName;
+                } else {
+                    $data['has_currency_conversion'] = false;
+                    $data['coin_amount_uah'] = number_format($amountInUah, 2, ',', ' ') . ' UAH';
+                    $data['coin_amount_currency'] = '';
+                    $data['currency_name'] = '';
+                }
+
                 $data['ecom_order_id'] = $e_com_response['ecomOrderId'] ?? $e_com_response['ecom_order_id'] ?? '';
                 $data['status_url'] = $e_com_response['statusUrl'] ?? $e_com_response['status_url'] ?? '';
                 $data['merchant_id'] = $e_com_response['merchantId'] ?? $e_com_response['merchant_id'] ?? '';

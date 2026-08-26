@@ -48,6 +48,8 @@ class Db extends \Opencart\System\Engine\Model
             `is_callback_returned` BOOLEAN DEFAULT FALSE,
             `callback_data` LONGTEXT,
             `original_authorized_amount` INT(11) DEFAULT NULL,
+            `currency_code` INT(3) DEFAULT NULL,
+            `conversion_rate` DECIMAL(20,6) DEFAULT NULL,
 			`expired_order_date` DATETIME NOT NULL,
 			PRIMARY KEY (`order_id`),
 			KEY `merchant_request_id` (`merchant_request_id`),
@@ -104,7 +106,7 @@ class Db extends \Opencart\System\Engine\Model
 
     public function updateAllianceOrderTable()
     {
-        $columnsToAdd = "'updated_at', 'ecom_order_id', 'is_callback_returned', 'callback_data', 'original_authorized_amount'";
+        $columnsToAdd = "'updated_at', 'ecom_order_id', 'is_callback_returned', 'callback_data', 'original_authorized_amount', 'currency_code', 'conversion_rate'";
 
         $columnsDefinition = [
             'updated_at'                 => ' DATETIME NOT NULL AFTER `create_date`',
@@ -113,6 +115,8 @@ class Db extends \Opencart\System\Engine\Model
             'is_callback_returned'       => ' BOOLEAN DEFAULT FALSE AFTER `payment_methods`',
             'callback_data'              => ' LONGTEXT AFTER `payment_methods`',
             'original_authorized_amount' => ' INT(11) DEFAULT NULL AFTER `callback_data`',
+            'currency_code'              => ' INT(3) DEFAULT NULL AFTER `original_authorized_amount`',
+            'conversion_rate'            => ' DECIMAL(20,6) DEFAULT NULL AFTER `currency_code`',
         ];
 
         $orderIdIsPrimary = $this->db->query(

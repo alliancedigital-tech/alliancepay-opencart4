@@ -42,6 +42,12 @@ class Ecom
 
     const HPP_PAY_TYPE_PREAUTH = 'PREAUTH';
 
+    const CURRENCY_MAP = [
+        'UAH' => 980,
+        'USD' => 840,
+        'EUR' => 978
+    ];
+
     const A2A_DIRECT_TYPE = 'BANK_LINK';
 
     const A2A_PRIORITY_BANK_CODE = 'ALL_BANKS';
@@ -135,6 +141,25 @@ class Ecom
         ],
     ];
 
+    /**
+     * @param string $code
+     * @return int
+     */
+    public static function getCurrencyCode(string $code): int
+    {
+        if (!isset(self::CURRENCY_MAP[$code])) {
+            throw new \InvalidArgumentException(
+                'Unsupported currency code: '
+                . $code
+                . '. Supported currencies: '
+                . implode(', ', array_keys(self::CURRENCY_MAP))
+                . '.'
+            );
+        }
+
+        return self::CURRENCY_MAP[$code];
+    }
+
     public function __construct(Registry $registry)
     {
         $this->config = $registry->get('config');
@@ -151,9 +176,14 @@ class Ecom
         $this->countryCodeProvider = new AllianceCountryCodeProvider();
 
         $autoload = DIR_EXTENSION . 'alliance/system/library/vendor/autoload.php';
+        $composerAutoloadByPath = DIR_EXTENSION . 'alliance/vendor/autoload.php';
 
         if (is_file($autoload)) {
             require_once($autoload);
+        } elseif (is_file($composerAutoloadByPath)) {
+            require_once($composerAutoloadByPath);
+        } else {
+            throw new \RuntimeException('Autoload file not found');
         }
     }
 
@@ -443,6 +473,11 @@ class Ecom
             $paymentData['directType'] = self::A2A_DIRECT_TYPE;
             $paymentData['priorityBankCode'] = self::A2A_PRIORITY_BANK_CODE;
             $paymentData['merchantComment'] = 'Payment for order #' . ($orderInfo['order_id'] ?? '');
+        }
+
+        if ($hppPayType === self::HPP_PAY_TYPE_PURCHASE || $hppPayType === self::HPP_PAY_TYPE_PREAUTH) {
+            $currencyCodeStr = $orderInfo['currency_code'] ?? 'UAH';
+            $paymentData['currencyCode'] = self::getCurrencyCode($currencyCodeStr);
         }
 
         if ($hppPayType === self::HPP_PAY_TYPE_PREAUTH) {

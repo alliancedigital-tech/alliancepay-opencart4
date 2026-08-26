@@ -44,7 +44,7 @@ class Alliance extends \Opencart\System\Engine\Model
      */
     public function getAllianceOrder(string $hpp_order_id): array
     {
-        $query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "alliance_checkout_integration_order` WHERE `hpp_order_id` = '" . $this->db->escape($hpp_order_id) . "'");
+        $query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "alliance_checkout_integration_order` WHERE `hpp_order_id` = '{$hpp_order_id}'");
 
         return $query->row;
     }
@@ -95,6 +95,10 @@ class Alliance extends \Opencart\System\Engine\Model
             $implode[]  = "`original_authorized_amount` = '" . $coinAmount . "'";
         }
 
+        if (!empty($data['currencyCode'])) {
+            $implode[] = "`currency_code` = '" . (int)$data['currencyCode'] . "'";
+        }
+
         if (!empty($data['hppPayType'])) {
             $implode[] = "`hpp_pay_type` = '" . $this->db->escape($data['hppPayType']) . "'";
         }
@@ -132,6 +136,14 @@ class Alliance extends \Opencart\System\Engine\Model
     {
         $this->load->model('checkout/order');
 
+        $conversionRate = null;
+        if (!empty($data['operation']['conversionRate'])) {
+            $opType = $data['operation']['type'] ?? '';
+            if (in_array($opType, [Ecom::OPERATION_TYPE_PURCHASE, Ecom::OPERATION_TYPE_PREAUTH])) {
+                $conversionRate = (float)$data['operation']['conversionRate'];
+            }
+        }
+
         $data = $this->prepareOperations($data);
 
         $sql = "UPDATE `" . DB_PREFIX . "alliance_checkout_integration_order` SET";
@@ -150,9 +162,13 @@ class Alliance extends \Opencart\System\Engine\Model
             $implode[] = "`operation_id` = '" . $data['operationId'] . "'";
         }
 
+        if ($conversionRate !== null) {
+            $implode[] = "`conversion_rate` = '" . $conversionRate . "'";
+        }
+
         $implode[] = "`updated_at` = '" . $this->db->escape(date('Y-m-d H:i:s')) . "'";
-        $implode[] = "`callback_data` = '" . $this->db->escape(json_encode($data)) . "'";
         $implode[] = "`is_callback_returned` = '1'";
+        $implode[] = "`callback_data` = '" . $this->db->escape(json_encode($data)) . "'";
 
         if ($implode) {
             $sql .= implode(', ', $implode);

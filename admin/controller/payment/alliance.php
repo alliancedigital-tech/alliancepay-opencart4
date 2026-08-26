@@ -17,7 +17,7 @@ use Opencart\System\Library\Extension\Alliance\Http\ResponseDecoder;
  */
 class Alliance extends \Opencart\System\Engine\Controller
 {
-    public $version = '1.3.0';
+    public $version = '1.4.0';
 
     private array $events = [
         [
@@ -288,7 +288,8 @@ class Alliance extends \Opencart\System\Engine\Controller
         if (!empty($alliance_order) && !empty($order_callback)) {
             $this->response->setOutput($this->load->view('extension/alliance/payment/operation_info',
                 $this->model_extension_alliance_payment_alliance->fillOperationStatusData($data, $order_callback, false,
-                    $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id))));
+                    $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id),
+                    $alliance_order)));
             return true;
         }
 
@@ -300,13 +301,21 @@ class Alliance extends \Opencart\System\Engine\Controller
         } catch (\Exception $exception) {
             $json['msgType'] = $this->language->get('error_technical');
             $this->response->setOutput($this->load->view('extension/alliance/payment/operation_info',
-                $this->model_extension_alliance_payment_alliance->fillOperationStatusData($data, $json, true)));
+                $this->model_extension_alliance_payment_alliance->fillOperationStatusData($data, $json, true, false, $alliance_order)));
             return false;
         }
 
-        $this->response->setOutput($this->load->view('extension/alliance/payment/operation_info',
-            $this->model_extension_alliance_payment_alliance->fillOperationStatusData($data, $e_com_response, false,
-                $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id))));
+        $this->response->setOutput(
+            $this->load->view('extension/alliance/payment/operation_info',
+                $this->model_extension_alliance_payment_alliance->fillOperationStatusData(
+                    $data,
+                    $e_com_response,
+                    false,
+                    $this->model_extension_alliance_payment_refund->checkIfOrderRefunded($order_id),
+                    $alliance_order
+                )
+            )
+        );
 
         return true;
     }
@@ -344,8 +353,15 @@ class Alliance extends \Opencart\System\Engine\Controller
         }
 
         $order = $this->model_sale_order->getOrder($order_id);
-        $current_coin_amount = (int)round((float)$order['total'] * 100);
-        $original_amount = (int)($alliance_order['original_authorized_amount'] ?? 0);
+
+        $conversionRate = (float)($alliance_order['conversion_rate'] ?? 0);
+        if ($conversionRate > 0) {
+            $current_coin_amount = (int)round((float)$order['total'] * $conversionRate * 100);
+        } else {
+            $current_coin_amount = (int)round((float)$order['total'] * 100);
+        }
+
+        $original_amount = (int)($alliance_order['original_authorized_amount'] * $conversionRate ?? 0);
 
         if ($original_amount === 0) {
             $json['success'] = false;

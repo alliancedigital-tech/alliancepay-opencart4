@@ -207,6 +207,7 @@ class Alliance extends \Opencart\System\Engine\Controller
                 $this->url,
                 $order['total']
             );
+            $data['currencyCode'] = Ecom::getCurrencyCode($order['currency_code']);
             $this->model_extension_alliance_payment_alliance->saveAllianceOrder(
                 $data,
                 $this->session->data['order_id']

@@ -81,13 +81,22 @@ class Refund extends Model
                     ];
                 }
 
-                $coinAmount = $isFullReturn
-                    ? $purchaseOperation['coinAmount']
-                    : $this->getPartialRefundCoinAmount(
+                $conversionRate = (float)($allianceOrder['conversion_rate'] ?? 0);
+
+                if ($isFullReturn) {
+                    if ($conversionRate > 0) {
+                        $coinAmount = (int)round($allianceOrder['coin_amount'] * $conversionRate);
+                    } else {
+                        $coinAmount = (int)$allianceOrder['coin_amount'];
+                    }
+                } else {
+                    $coinAmount = $this->getPartialRefundCoinAmount(
                         $orderId,
                         $productIds,
-                        $refundShipping
+                        $refundShipping,
+                        $conversionRate
                     );
+                }
                 $refundData = $this->prepareRefundData($purchaseOperation, $coinAmount);
 
                 $jwe_token = $this->ecom->authorizeByVirtualDevice(
@@ -168,18 +177,18 @@ class Refund extends Model
      */
     public function checkIfOrderRefunded(int $orderId): bool
     {
-        $refoundAmont = 0;
+        $totalAmountRefunds = 0;
 
-        $allianceOrders = $this->model_extension_alliance_payment_refund_history->getRefundOrder($orderId);
+        $refundOperations = $this->model_extension_alliance_payment_refund_history->getRefundOrder($orderId);
 
-        foreach ($allianceOrders as $allianceOrder) {
-            $refoundAmont += $allianceOrder['coin_amount'];
+        foreach ($refundOperations as $refundOperation) {
+            $totalAmountRefunds += (int)$refundOperation['coin_amount'];
         }
 
-        $ocOrder = $this->model_sale_order->getOrder($orderId);
-        $ocOrderTotal = $this->getCoinAmount((float)$ocOrder['total']);
+        $allianceOrder = $this->model_extension_alliance_payment_alliance->getAllianceOrder($orderId);
+        $originalCoinAmount = (int)($allianceOrder['coin_amount'] ?? 0);
 
-        return $ocOrderTotal == $refoundAmont;
+        return $originalCoinAmount > 0 && $originalCoinAmount === $totalAmountRefunds;
     }
 
     /**
@@ -215,16 +224,21 @@ class Refund extends Model
      * @param $orderId
      * @param $productIds
      * @param $refundShipping
+     * @param float $conversionRate
      * @return int
      */
-    private function getPartialRefundCoinAmount($orderId, $productIds, $refundShipping = 0)
-    {
-        $coinAmount = 0;
+    private function getPartialRefundCoinAmount(
+        $orderId,
+        $productIds,
+        $refundShipping = 0,
+        float $conversionRate = 0.0
+    ) {
+        $rawTotal = 0.0;
         $products = $this->model_sale_order->getProducts($orderId);
 
         foreach ($products as $product) {
             if (in_array($product['order_product_id'], $productIds)) {
-                $coinAmount += $this->getCoinAmount((float)$product['total']);
+                $rawTotal += (float)$product['total'];
             }
         }
 
@@ -232,12 +246,16 @@ class Refund extends Model
             $order_totals = $this->model_sale_order->getTotals($orderId);
             foreach ($order_totals as $total) {
                 if ($total['code'] == 'shipping') {
-                    $coinAmount += $this->getCoinAmount((float)$total['value']);
+                    $rawTotal += (float)$total['value'];
                 }
             }
         }
 
-        return $coinAmount;
+        if ($conversionRate > 0) {
+            return (int)round($rawTotal * $conversionRate * 100);
+        }
+
+        return (int)round($rawTotal * 100);
     }
 
     /**

@@ -16,9 +16,12 @@ class AllianceCountryCodeProvider
     public function __construct()
     {
         $composerAutoload = DIR_EXTENSION . 'alliance/system/library/vendor/autoload.php';
+        $composerAutoloadByPath = DIR_EXTENSION . 'alliance/vendor/autoload.php';
 
         if (file_exists($composerAutoload)) {
             require_once $composerAutoload;
+        } else if (file_exists($composerAutoloadByPath)) {
+            require_once $composerAutoloadByPath;
         } else {
             $rootAutoload = DIR_SYSTEM . '../vendor/autoload.php';
             if (file_exists($rootAutoload)) {

@@ -159,6 +159,13 @@ class Data extends \Opencart\System\Engine\Model
         $data['entry_completion_status'] = $this->language->get('entry_completion_status');
         $data['help_completion_status'] = $this->language->get('help_completion_status');
 
+        $storeCurrency = $config->get('config_currency') ?: 'UAH';
+        $data['config_currency'] = $storeCurrency;
+        $data['a2a_uah_warning'] = sprintf(
+            $this->language->get('a2a_uah_warning'),
+            $storeCurrency
+        );
+
         $data["url_clear"] = $this->url->link(
             "extension/alliance/payment/alliance/clear",
             "user_token=" . $session->data["user_token"],

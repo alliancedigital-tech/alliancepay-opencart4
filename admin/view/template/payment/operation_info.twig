@@ -64,10 +64,21 @@
               <span class="alliance-order-info-title">{{ text_order_status }}</span>
               <span class="alliance-order-info-value">{{ order_status }}</span>
             </p>
+            {% if has_currency_conversion %}
             <p>
-              <span class="alliance-order-info-title">{{ text_amount }}</span>
-              <span class="alliance-order-info-value">{{ coin_amount }}</span>
+              <span class="alliance-order-info-title">{{ text_amount_uah }}</span>
+              <span class="alliance-order-info-value">{{ coin_amount_uah }}</span>
             </p>
+            <p>
+              <span class="alliance-order-info-title">{{ text_amount }} ({{ currency_name }}):</span>
+              <span class="alliance-order-info-value">{{ coin_amount_currency }}</span>
+            </p>
+            {% else %}
+            <p>
+              <span class="alliance-order-info-title">{{ text_amount_uah }}</span>
+              <span class="alliance-order-info-value">{{ coin_amount_uah }}</span>
+            </p>
+            {% endif %}
             <p>
               <span class="alliance-order-info-title">{{ text_ecom_order_id }}</span>
               <span class="alliance-order-info-value">{{ ecom_order_id }}</span>
