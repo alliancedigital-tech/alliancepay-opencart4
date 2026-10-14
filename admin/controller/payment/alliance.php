@@ -17,7 +17,7 @@ use Opencart\System\Library\Extension\Alliance\Http\ResponseDecoder;
  */
 class Alliance extends \Opencart\System\Engine\Controller
 {
-    public $version = '1.4.0';
+    public $version = '1.6.0';
 
     private array $events = [
         [
@@ -54,6 +54,27 @@ class Alliance extends \Opencart\System\Engine\Controller
             'action' => 'extension/alliance/event/order|orderInfoAfter',
             'event_code' => 'alliance_order_info_partial_refund',
             'sort_order' => 1,
+        ],
+        [
+            'description' => 'Add Subscription Plans menu link to admin sidebar',
+            'trigger' => 'admin/view/common/column_left/before',
+            'action' => 'extension/alliance/event/adminmenu|addMenuLink',
+            'event_code' => 'alliance_subscription_admin_menu',
+            'sort_order' => 0,
+        ],
+        [
+            'description' => 'Capture the customer\'s subscription-plan-or-one-time choice after add-to-cart',
+            'trigger' => 'catalog/controller/checkout/cart.add/after',
+            'action' => 'extension/alliance/payment/event/subscriptioncartguard|afterAddToCart',
+            'event_code' => 'alliance_subscription_cart_guard',
+            'sort_order' => 0,
+        ],
+        [
+            'description' => 'Add subscription plan / one-time purchase dropdown to product page',
+            'trigger' => 'catalog/view/product/product/after',
+            'action' => 'extension/alliance/payment/event/subscriptionproductoptions|afterProductView',
+            'event_code' => 'alliance_subscription_product_options',
+            'sort_order' => 0,
         ],
     ];
 
@@ -136,17 +157,17 @@ class Alliance extends \Opencart\System\Engine\Controller
             'payment_alliance_preauth_exp_date' => '2h',
         ];
 
-        $this->model_user_user_group->addPermission(
-            $this->user->getGroupId(),
-            'access',
-            'extension/alliance/alliance/refund'
-        );
+        $subscriptionRoutes = [
+            'extension/alliance/alliance/refund',
+            'extension/alliance/alliance/subscriptionplan',
+            'extension/alliance/alliance/subscription',
+            'extension/alliance/alliance/subscriptionplanreprice',
+        ];
 
-        $this->model_user_user_group->addPermission(
-            $this->user->getGroupId(),
-            'modify',
-            'extension/alliance/alliance/refund'
-        );
+        foreach ($subscriptionRoutes as $route) {
+            $this->model_user_user_group->addPermission($this->user->getGroupId(), 'access', $route);
+            $this->model_user_user_group->addPermission($this->user->getGroupId(), 'modify', $route);
+        }
 
         $this->model_setting_setting->editSetting('payment_alliance', $default_settings);
         $this->model_extension_alliance_payment_db->initDB();
@@ -171,17 +192,17 @@ class Alliance extends \Opencart\System\Engine\Controller
                 $this->model_setting_event->deleteEventByCode($event['event_code']);
             }
 
-            $this->model_user_user_group->removePermission(
-                $this->user->getGroupId(),
-                'access',
-                'extension/alliance/alliance/refund'
-            );
+            $subscriptionRoutes = [
+                'extension/alliance/alliance/refund',
+                'extension/alliance/alliance/subscriptionplan',
+                'extension/alliance/alliance/subscription',
+                'extension/alliance/alliance/subscriptionplanreprice',
+            ];
 
-            $this->model_user_user_group->removePermission(
-                $this->user->getGroupId(),
-                'modify',
-                'extension/alliance/alliance/refund'
-            );
+            foreach ($subscriptionRoutes as $route) {
+                $this->model_user_user_group->removePermission($this->user->getGroupId(), 'access', $route);
+                $this->model_user_user_group->removePermission($this->user->getGroupId(), 'modify', $route);
+            }
 
             $json['success'] = $this->language->get('text_success');
         }
@@ -259,8 +280,9 @@ class Alliance extends \Opencart\System\Engine\Controller
     {
         $this->load->model('extension/alliance/payment/db');
         $this->model_extension_alliance_payment_db->updateAllianceOrderTable();
+        $this->model_extension_alliance_payment_db->initSubscriptionTables();
         $this->load->model('setting/setting');
-        $this->model_setting_setting->editSetting('payment_alliance', ['payment_alliance_version' => '1.0.0']);
+        $this->model_setting_setting->editSetting('payment_alliance', ['payment_alliance_version' => $this->version]);
     }
 
     public function checkOperationStatus(): bool
@@ -295,9 +317,7 @@ class Alliance extends \Opencart\System\Engine\Controller
 
         try {
             $ecom = new Ecom($this->registry);
-            $jwe_token = $ecom->authorizeByVirtualDevice($this->config->get('payment_alliance_service_code_id'));
-            $decrypt_auth = $ecom->decryptResponse($jwe_token);
-            $e_com_response = $ecom->checkOperationStatus($decrypt_auth, $alliance_order['hpp_order_id']);
+            $e_com_response = $ecom->checkOperationStatus($alliance_order['hpp_order_id']);
         } catch (\Exception $exception) {
             $json['msgType'] = $this->language->get('error_technical');
             $this->response->setOutput($this->load->view('extension/alliance/payment/operation_info',
@@ -357,11 +377,11 @@ class Alliance extends \Opencart\System\Engine\Controller
         $conversionRate = (float)($alliance_order['conversion_rate'] ?? 0);
         if ($conversionRate > 0) {
             $current_coin_amount = (int)round((float)$order['total'] * $conversionRate * 100);
+            $original_amount = (int)($alliance_order['original_authorized_amount'] * $conversionRate ?? 0);
         } else {
             $current_coin_amount = (int)round((float)$order['total'] * 100);
+            $original_amount = (int)($alliance_order['original_authorized_amount'] ?? 0);
         }
-
-        $original_amount = (int)($alliance_order['original_authorized_amount'] * $conversionRate ?? 0);
 
         if ($original_amount === 0) {
             $json['success'] = false;
@@ -384,8 +404,6 @@ class Alliance extends \Opencart\System\Engine\Controller
 
         try {
             $ecom = new Ecom($this->registry);
-            $jwe_token = $ecom->authorizeByVirtualDevice($this->config->get('payment_alliance_service_code_id'));
-            $decrypt_auth = $ecom->decryptResponse($jwe_token);
 
             $completion_data = [
                 'merchant_id' => $alliance_order['merchant_id'],
@@ -393,7 +411,7 @@ class Alliance extends \Opencart\System\Engine\Controller
                 'coin_amount' => (string)$current_coin_amount,
             ];
 
-            $result = $ecom->proceedCompletion($decrypt_auth, $completion_data);
+            $result = $ecom->proceedCompletion($completion_data);
 
             if (!empty($result['msgType']) && $result['msgType'] === 'ERROR') {
                 throw new \Exception(

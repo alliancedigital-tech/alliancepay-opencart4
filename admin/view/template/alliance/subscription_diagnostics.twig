@@ -1,0 +1,111 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="float-end">
+        <a href="{{ back }}" data-bs-toggle="tooltip" title="{{ button_back }}" class="btn btn-light">
+          <i class="fas fa-reply"></i>
+        </a>
+      </div>
+      <h1>{{ heading_title }}</h1>
+    </div>
+  </div>
+  <div class="container-fluid" id="alliance-page">
+    <div id="alert"></div>
+
+    {% if provider_warning %}
+      <div class="alert alert-warning" role="alert">
+        <i class="fa fa-exclamation-triangle"></i> {{ provider_warning }}
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header">Order #{{ subscription.order_id }} — {{ subscription.status }}</div>
+      <div class="card-body">
+        <p><strong>Provider order ID:</strong> {{ subscription.provider_order_id }}</p>
+        <p><strong>Merchant request ID:</strong> {{ subscription.merchant_request_id }}</p>
+
+        <h5>{{ text_rules_snapshot }}</h5>
+        <table class="table table-sm">
+          <thead><tr><td>#</td><td>Amount</td><td>Interval</td></tr></thead>
+          <tbody>
+            {% for rule in rules_snapshot %}
+              <tr>
+                <td>{{ rule.paymentNumberFrom }}-{{ rule.paymentNumberTo }}</td>
+                <td>{{ (rule.coinAmount) }}</td>
+                <td>{{ rule.intervalValue }} {{ rule.intervalUnit }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <h5>{{ text_scheduled_payments }}</h5>
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <td>{{ column_scheduled_date }}</td>
+              <td>{{ column_status }}</td>
+              <td>Operation ID</td>
+              <td>Retries</td>
+              <td class="text-end">{{ column_action }}</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payment in scheduled_payments %}
+              <tr>
+                <td>{{ payment.scheduled_date }}</td>
+                <td>{{ payment.status }}</td>
+                <td>{{ payment.operation_id }}</td>
+                <td>{{ payment.retry_count }}</td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-outline-secondary btn-sm button-trigger" data-scheduled-payment-id="{{ payment.scheduled_payment_id }}">
+                    {{ button_trigger_recurring }}
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <button type="button" id="button-cancel" class="btn btn-danger" data-subscription-id="{{ subscription.subscription_id }}">
+          {{ button_cancel_subscription }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function () {
+  var alertBox = document.getElementById('alert');
+
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: body
+    }).then(function (r) { return r.json(); });
+  }
+
+  document.querySelectorAll('.button-trigger').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      post('{{ trigger_url|raw }}', 'scheduled_payment_id=' + encodeURIComponent(btn.getAttribute('data-scheduled-payment-id')))
+        .then(function (json) {
+          alertBox.innerHTML = json.error
+            ? '<div class="alert alert-danger">' + json.error + '</div>'
+            : '<div class="alert alert-success">' + json.success + '</div>';
+        });
+    });
+  });
+
+  document.getElementById('button-cancel').addEventListener('click', function () {
+    var btn = this;
+    post('{{ cancel_url|raw }}', 'subscription_id=' + encodeURIComponent(btn.getAttribute('data-subscription-id')))
+      .then(function (json) {
+        alertBox.innerHTML = json.error
+          ? '<div class="alert alert-danger">' + json.error + '</div>'
+          : '<div class="alert alert-success">' + json.success + '</div>';
+      });
+  });
+});
+</script>
+{{ footer }}

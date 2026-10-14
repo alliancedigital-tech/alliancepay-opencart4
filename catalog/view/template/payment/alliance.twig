@@ -1,3 +1,6 @@
+{% if guard_error %}
+  <div class="alert alert-danger" role="alert">{{ guard_error }}</div>
+{% else %}
 <div class="text-end">
   <button type="button" id="button-confirm" class="btn btn-primary">
     {{ button_confirm }}
@@ -8,8 +11,7 @@ $('#button-confirm').on('click', function () {
     var element = this;
 
     $.ajax({
-        //url: 'index.php?route=extension/alliance/payment/alliance|confirm&language={{ language }}',
-        url: 'index.php?route=extension/alliance/payment/alliance|payment',
+        url: 'index.php?route=extension/alliance/payment/alliance|{{ is_subscription_order ? 'subscriptionSignup' : 'payment' }}',
         dataType: 'json',
         beforeSend: function () {
             $(element).button('loading');
@@ -19,7 +21,8 @@ $('#button-confirm').on('click', function () {
         },
         success: function (json) {
             if (json['error']) {
-                $('#alert').prepend('<div class="alert alert-danger alert-dismissible"><i class="fa-solid fa-circle-exclamation"></i> ' + json['error'] + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+                $('#alert').prepend('<div class="alert alert-danger alert-dismissible"><i class="fa-solid fa-circle-exclamation"></i> '
+                    + json['error'] + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
             }
 
             if (json['redirect']) {
@@ -32,3 +35,4 @@ $('#button-confirm').on('click', function () {
     });
 });
 </script>
+{% endif %}

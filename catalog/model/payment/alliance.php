@@ -261,6 +261,7 @@ class Alliance extends \Opencart\System\Engine\Model
         unset($session->data['agree']);
         unset($session->data['coupon']);
         unset($session->data['reward']);
+        unset($session->data['alliance_selected_subscription_plan_id']);
     }
 
     /**

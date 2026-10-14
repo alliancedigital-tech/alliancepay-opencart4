@@ -17,7 +17,7 @@ $_['text_refund_complete']        = 'Refund complete!';
 $_['text_refund_failed']          = 'Refund failed!';
 $_['text_alliance_settings']      = 'Alliance payment module settings';
 $_['text_help_settings']          = 'Be sure to fill in all settings and check if everything is correct. Otherwise, the payment may not work correctly.';
-$_['text_help_jwt']               = 'Enter jwt keys. You need to select parameters "x", "y", "d" from the generated key file to decrypt the responses. If the keys are not filled or incorrect, the plugin will not work. If you have any questions, contact JSC "BANK ALLIANCE".';
+$_['text_help_jwt']               = 'Enter the RSA private key (PEM, PKCS#8, "-----BEGIN PRIVATE KEY-----") issued by JSC "BANK ALLIANCE" and the associated Key ID (kid). They are used to sign every request sent to the bank. If they are missing or incorrect, the plugin will not work. If you have any questions, contact JSC "BANK ALLIANCE".';
 
 // Operation Info Text
 $_['text_msg_type']               = 'Message Type:';
@@ -36,9 +36,8 @@ $_['text_created_date']           = 'Created Date:';
 
 // Entry
 $_['entry_api_url']               = 'Alliance API URL';
-$_['entry_param_x']               = 'Parameter "x"';
-$_['entry_param_y']               = 'Parameter "y"';
-$_['entry_param_d']               = 'Parameter "d"';
+$_['entry_jws_private_key']       = 'JWS Private Key';
+$_['entry_jws_key_id']            = 'JWS Key ID (kid)';
 $_['entry_hpp_type']              = 'Hpp Type';
 $_['entry_fail_url']              = 'Page to redirect the user in case of payment error';
 $_['entry_success_url']           = 'Page to redirect the user in case of successful payment';
@@ -55,7 +54,8 @@ $_['entry_preauth_status']        = '"PREAUTH authorized" status';
 $_['entry_completion_status']     = '"Completion trigger" status';
 
 // Help
-$_['help_service_code']           = 'Get serviceCode from JSC "BANK ALLIANCE"';
+$_['help_jws_private_key']        = 'RSA private key (PEM, PKCS#8, "-----BEGIN PRIVATE KEY-----") used to sign requests to JSC "BANK ALLIANCE". Provided together with the Key ID.';
+$_['help_jws_key_id']             = 'Key ID (kid) issued by JSC "BANK ALLIANCE" together with the private key.';
 $_['help_merchant_id']            = 'Get merchantId from JSC "BANK ALLIANCE"';
 $_['help_fail_url']               = 'This page is standard according to your store settings. Example: https://example.com/fail';
 $_['help_success_url']            = 'This page is standard according to your store settings. Example: https://example.com/success';

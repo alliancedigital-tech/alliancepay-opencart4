@@ -11,3 +11,7 @@ $_['error_validation_only_digits']  = 'Значення не може місти
 $_['error_validation_pattern']      = 'Значення містить заборонені символи або невірний формат (пробіли/дефіси по краях)';
 $_['error_validation_stop_word']    = 'Виявлено заборонене стоп-слово: %s';
 $_['error_validation_max_len']      = 'Перевищено ліміт символів (max: %d)';
+$_['error_subscription_guest_checkout'] = 'Будь ласка, увійдіть у свій обліковий запис, щоб оформити підписку на цей товар.';
+$_['error_subscription_mixed_cart']     = 'Товар з підпискою неможливо поєднати з іншими товарами або з іншою підпискою в одному замовленні.';
+$_['text_subscription_options']         = 'Варіант придбання';
+$_['text_one_time_purchase']            = 'Одноразова покупка';

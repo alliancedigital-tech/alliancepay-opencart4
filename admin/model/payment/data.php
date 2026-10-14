@@ -73,9 +73,6 @@ class Data extends \Opencart\System\Engine\Model
             $request->post['payment_alliance_url']
             ?? $config->get('payment_alliance_url');
 
-        $data["payment_alliance_service_code_id"] = $request->post["payment_alliance_service_code_id"]
-            ?? $config->get("payment_alliance_service_code_id");
-
         $data["payment_alliance_merchant_id"] = $request->post["payment_alliance_merchant_id"]
             ?? $config->get("payment_alliance_merchant_id");
 
@@ -111,14 +108,16 @@ class Data extends \Opencart\System\Engine\Model
         $data["payment_alliance_status"] = $request->post["payment_alliance_status"]
             ?? $config->get("payment_alliance_status");
 
-        $data["payment_alliance_jwt_param_x"] = $request->post["payment_alliance_jwt_param_x"]
-            ?? $config->get("payment_alliance_jwt_param_x");
+        $data['payment_alliance_jws_private_key'] = $request->post['payment_alliance_jws_private_key']
+            ?? $config->get('payment_alliance_jws_private_key');
 
-        $data["payment_alliance_jwt_param_y"] = $request->post["payment_alliance_jwt_param_y"]
-            ?? $config->get("payment_alliance_jwt_param_y");
+        $data['payment_alliance_jws_key_id'] = $request->post['payment_alliance_jws_key_id']
+            ?? $config->get('payment_alliance_jws_key_id');
 
-        $data["payment_alliance_jwt_param_d"] = $request->post["payment_alliance_jwt_param_d"]
-            ?? $config->get("payment_alliance_jwt_param_d");
+        $data['entry_jws_private_key'] = $this->language->get('entry_jws_private_key');
+        $data['help_jws_private_key'] = $this->language->get('help_jws_private_key');
+        $data['entry_jws_key_id'] = $this->language->get('entry_jws_key_id');
+        $data['help_jws_key_id'] = $this->language->get('help_jws_key_id');
 
         // #ORDER STATUSES
         $this->load->model("localisation/order_status");

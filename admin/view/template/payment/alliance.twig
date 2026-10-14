@@ -87,73 +87,41 @@
           </div>
 
           <div class="row mb-3">
-            <label class="form-label" for="payment_alliance_jwt_param_x">
-              {{ entry_param_x }}
+            <label class="form-label" for="payment_alliance_jws_private_key">
+              {{ entry_jws_private_key }}
+            </label>
+            <div class="input-group has-validation">
+              <div class="input-group-text">
+                <i class="fa fa-key fa-fw"></i>
+              </div>
+              <textarea name="payment_alliance_jws_private_key"
+                        id="payment_alliance_jws_private_key"
+                        rows="6"
+                        placeholder="-----BEGIN PRIVATE KEY-----"
+                        class="form-control">{{ payment_alliance_jws_private_key }}</textarea>
+            </div>
+            <div class="form-text">
+              {{ help_jws_private_key }}
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="payment_alliance_jws_key_id">
+              {{ entry_jws_key_id }}
             </label>
             <div class="input-group has-validation">
               <div class="input-group-text">
                 <i class="fa fa-key fa-fw"></i>
               </div>
               <input type="text"
-                     name="payment_alliance_jwt_param_x"
-                     id="payment_alliance_jwt_param_x"
-                     value="{{ payment_alliance_jwt_param_x }}"
-                     placeholder=""
-                     class="form-control" />
-            </div>
-          </div>
-
-          <div class="row mb-3">
-            <label class="form-label" for="payment_alliance_jwt_param_y">
-              {{ entry_param_y }}
-            </label>
-            <div class="input-group has-validation">
-              <div class="input-group-text">
-                <i class="fa fa-key fa-fw"></i>
-              </div>
-              <input type="text"
-                     name="payment_alliance_jwt_param_y"
-                     id="payment_alliance_jwt_param_y"
-                     value="{{ payment_alliance_jwt_param_y }}"
-                     placeholder=""
-                     class="form-control" />
-            </div>
-          </div>
-
-          <div class="row mb-3">
-            <label class="form-label" for="payment_alliance_jwt_param_d">
-              {{ entry_param_d }}
-            </label>
-            <div class="input-group has-validation">
-              <div class="input-group-text">
-                <i class="fa fa-key fa-fw"></i>
-              </div>
-              <input type="text"
-                     name="payment_alliance_jwt_param_d"
-                     id="payment_alliance_jwt_param_d"
-                     value="{{ payment_alliance_jwt_param_d }}"
-                     placeholder=""
-                     class="form-control" />
-            </div>
-          </div>
-
-          <div class="row mb-3">
-            <label class="form-label" for="payment_alliance_service_code_id">
-              {{ alliance_service_code_id_api_key }}
-            </label>
-            <div class="input-group has-validation">
-              <div class="input-group-text">
-                <i class="fa fa-code fa-fw"></i>
-              </div>
-              <input type="text"
-                     name="payment_alliance_service_code_id"
-                     id="payment_alliance_service_code_id"
-                     value="{{ payment_alliance_service_code_id }}"
+                     name="payment_alliance_jws_key_id"
+                     id="payment_alliance_jws_key_id"
+                     value="{{ payment_alliance_jws_key_id }}"
                      placeholder=""
                      class="form-control" />
             </div>
             <div class="form-text">
-              {{ help_service_code }}
+              {{ help_jws_key_id }}
             </div>
           </div>
 

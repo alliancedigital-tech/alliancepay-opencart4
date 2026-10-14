@@ -70,9 +70,8 @@ class Alliance extends \Opencart\System\Engine\Model
                 $data['coin_amount'] = $this->convertCoinAmount($amount);
 
                 $conversionRate = (float)($allianceOrder['conversion_rate'] ?? 0);
-                $currencyCode   = (int)($allianceOrder['currency_code'] ?? 0);
-                $currencyMap    = [980 => 'UAH', 840 => 'USD', 978 => 'EUR'];
-                $currencyName   = $currencyMap[$currencyCode] ?? 'UAH';
+                $currencyCode = (int)($allianceOrder['currency_code'] ?? 0);
+                $currencyName = Ecom::getCurrencyName($currencyCode);
 
                 $amountInUah = $amount / 100;
 

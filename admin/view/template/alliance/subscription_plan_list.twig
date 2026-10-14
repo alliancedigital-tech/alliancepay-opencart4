@@ -1,0 +1,83 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="float-end">
+        <a href="{{ add }}" data-bs-toggle="tooltip" title="{{ button_add }}" class="btn btn-primary">
+          <i class="fa fa-plus"></i>
+        </a>
+      </div>
+      <h1>{{ heading_title }}</h1>
+    </div>
+  </div>
+  <div class="container-fluid" id="alliance-page">
+    {% if success %}
+      <div class="alert alert-success" role="alert">
+        <i class="fa fa-check-circle"></i> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endif %}
+    {% if error_warning %}
+      <div class="alert alert-danger" role="alert">
+        <i class="fa fa-exclamation-circle"></i> {{ error_warning }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endif %}
+    <div class="card">
+      <div class="card-body">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <td>{{ entry_name }}</td>
+              <td>{{ entry_product }}</td>
+              <td>{{ column_status }}</td>
+              <td>{{ entry_rules }}</td>
+              <td class="text-end">{{ column_action }}</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for plan in plans %}
+              <tr>
+                <td>{{ plan.name }}</td>
+                <td>{{ plan.product_id }}</td>
+                <td>
+                  {{ plan.status }}
+                  {% if not plan.is_active %}<span class="badge bg-secondary">inactive for new</span>{% endif %}
+                  <br />
+                  <small>{{ plan.active_subscriptions_count }} active</small>
+                </td>
+                <td><small>{{ plan.rules_summary }}</small></td>
+                <td class="text-end">
+                  <a href="{{ plan.edit }}" class="btn btn-outline-primary btn-sm"><i class="fa fa-pencil"></i></a>
+                  <a href="{{ plan.reprice }}" class="btn btn-outline-warning btn-sm">{{ button_reprice }}</a>
+                  {% if plan.is_active %}
+                    <button type="button" class="btn btn-outline-secondary btn-sm button-deactivate" data-plan-id="{{ plan.subscription_plan_id }}">
+                      {{ button_deactivate_for_new }}
+                    </button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.button-deactivate').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var planId = btn.getAttribute('data-plan-id');
+      fetch('index.php?route=extension/alliance/alliance/subscriptionplan|deactivateForNewCustomers&user_token={{ user_token }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'subscription_plan_id=' + encodeURIComponent(planId)
+      })
+        .then(function (r) { return r.json(); })
+        .then(function () { location.reload(); });
+    });
+  });
+});
+</script>
+{{ footer }}

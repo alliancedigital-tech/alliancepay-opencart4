@@ -1,0 +1,39 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <h1>{{ heading_title }}</h1>
+    </div>
+  </div>
+  <div class="container-fluid" id="alliance-page">
+    <div class="card">
+      <div class="card-body">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <td>{{ column_order_id }}</td>
+              <td>{{ column_plan }}</td>
+              <td>{{ column_status }}</td>
+              <td>{{ column_provider_order_id }}</td>
+              <td class="text-end">{{ column_action }}</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for subscription in subscriptions %}
+              <tr>
+                <td>{{ subscription.order_id }}</td>
+                <td>{{ subscription.plan_name }}</td>
+                <td>{{ subscription.status }}</td>
+                <td>{{ subscription.provider_order_id }}</td>
+                <td class="text-end">
+                  <a href="{{ subscription.view }}" class="btn btn-outline-primary btn-sm">{{ button_view }}</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{{ footer }}

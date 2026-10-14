@@ -17,3 +17,7 @@ $_['error_validation_only_digits']  = 'Value cannot consist of digits only';
 $_['error_validation_pattern']      = 'Value contains forbidden characters or invalid format (leading/trailing spaces or hyphens)';
 $_['error_validation_stop_word']    = 'Forbidden stop-word detected: %s';
 $_['error_validation_max_len']      = 'Character limit exceeded (max: %d)';
+$_['error_subscription_guest_checkout'] = 'Please log in to your account to subscribe to this product.';
+$_['error_subscription_mixed_cart']     = 'A subscription product cannot be combined with other products, or with another subscription, in the same order.';
+$_['text_subscription_options']         = 'Purchase option';
+$_['text_one_time_purchase']            = 'One-time purchase';

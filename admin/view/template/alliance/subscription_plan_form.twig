@@ -1,0 +1,203 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="float-end">
+        <button type="submit" form="form-subscription-plan" data-bs-toggle="tooltip" title="{{ button_save }}" class="btn btn-primary">
+          <i class="fa fa-save"></i>
+        </button>
+        <a href="{{ back }}" data-bs-toggle="tooltip" title="{{ button_back }}" class="btn btn-light">
+          <i class="fas fa-reply"></i>
+        </a>
+      </div>
+      <h1>{{ heading_title }}</h1>
+    </div>
+  </div>
+  <div class="container-fluid" id="alliance-page">
+    <div id="alert"></div>
+    <div class="card">
+      <div class="card-body">
+        <form id="form-subscription-plan" class="row g-3">
+          {% if lock_structure %}
+            <div class="alert alert-warning">
+              {{ active_subscriptions_text }} — use "{{ button_reprice }}" to change price instead.
+            </div>
+          {% endif %}
+
+          <input type="hidden" name="subscription_plan_id" value="{{ plan.subscription_plan_id }}" />
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-name">{{ entry_name }}</label>
+            <input type="text" name="name" id="input-name" value="{{ plan.name }}" class="form-control" {{ lock_structure ? 'disabled' : '' }} />
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-description">{{ entry_description }}</label>
+            <input type="text" name="description" id="input-description" value="{{ plan.description }}" class="form-control" />
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-product">{{ entry_product }}</label>
+            <input type="text" id="input-product" class="form-control" autocomplete="off" {{ lock_structure ? 'disabled' : '' }} />
+            <input type="hidden" name="product_id" id="input-product-id" value="{{ plan.product_id }}" />
+            <div id="product-autocomplete" class="dropdown-menu" style="display:none;max-height:300px;overflow:auto;"></div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-category-indicator">{{ entry_category_indicator }}</label>
+            <input type="text" name="category_indicator" id="input-category-indicator" value="{{ plan.category_indicator }}" class="form-control" {{ lock_structure ? 'disabled' : '' }} />
+          </div>
+
+          <input type="hidden" name="currency" value="UAH" />
+          <div class="row mb-3">
+            <label class="form-label">{{ entry_currency }}</label>
+            <div class="form-control-plaintext">UAH</div>
+          </div>
+
+          <h5>{{ entry_rules }}</h5>
+          <div class="form-text">{{ help_rules }}</div>
+          <table class="table" id="rules-table">
+            <thead>
+              <tr>
+                <td>{{ entry_payment_number_from }}</td>
+                <td>{{ entry_payment_number_to }}</td>
+                <td>{{ entry_interval_value }}</td>
+                <td>{{ entry_interval_unit }}</td>
+                <td>{{ entry_amount }}</td>
+                <td></td>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rule in rules %}
+                <tr>
+                  <td><input type="number" min="1" name="rules[{{ loop.index0 }}][payment_number_from]" value="{{ rule.paymentNumberFrom }}" class="form-control" /></td>
+                  <td><input type="number" min="1" name="rules[{{ loop.index0 }}][payment_number_to]" value="{{ rule.paymentNumberTo }}" class="form-control" /></td>
+                  <td><input type="number" min="1" name="rules[{{ loop.index0 }}][interval_value]" value="{{ rule.intervalValue }}" class="form-control" /></td>
+                  <td>
+                    <select name="rules[{{ loop.index0 }}][interval_unit]" class="form-select">
+                      {% for unit in ['DAY', 'WEEK', 'MONTH'] %}
+                        <option value="{{ unit }}" {{ rule.intervalUnit == unit ? 'selected' : '' }}>{{ unit }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><input type="text" name="rules[{{ loop.index0 }}][amount]" value="{{ rule.amountDisplay }}" class="form-control" /></td>
+                  <td><button type="button" class="btn btn-outline-danger btn-sm button-remove-rule">&times;</button></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <button type="button" id="button-add-rule" class="btn btn-outline-primary">{{ button_add_rule }}</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function () {
+  var rulesTableBody = document.querySelector('#rules-table tbody');
+
+  function bindRemove(row) {
+    row.querySelector('.button-remove-rule').addEventListener('click', function () {
+      row.remove();
+    });
+  }
+
+  document.querySelectorAll('#rules-table tbody tr').forEach(bindRemove);
+
+  // All 5 fields of one row must share the SAME explicit index — empty `[]`
+  // brackets do NOT group same-row fields in PHP, each field independently
+  // appends its own top-level array element. Starts after the server-rendered
+  // rows so new rows never collide with them.
+  var ruleRowIndex = {{ rules|length }};
+
+  function buildRuleRow(fromValue, toValue, intervalValue, intervalUnit, amountValue) {
+    var index = ruleRowIndex++;
+    var row = document.createElement('tr');
+    row.innerHTML = '<td><input type="number" min="1" name="rules[' + index + '][payment_number_from]" value="' + (fromValue || '') + '" class="form-control" /></td>'
+      + '<td><input type="number" min="1" name="rules[' + index + '][payment_number_to]" value="' + (toValue || '') + '" class="form-control" /></td>'
+      + '<td><input type="number" min="1" name="rules[' + index + '][interval_value]" value="' + (intervalValue || '') + '" class="form-control" /></td>'
+      + '<td><select name="rules[' + index + '][interval_unit]" class="form-select">'
+      + ['DAY', 'WEEK', 'MONTH'].map(function (unit) {
+          return '<option value="' + unit + '"' + (unit === (intervalUnit || 'MONTH') ? ' selected' : '') + '>' + unit + '</option>';
+        }).join('')
+      + '</select></td>'
+      + '<td><input type="text" name="rules[' + index + '][amount]" value="' + (amountValue || '') + '" class="form-control" /></td>'
+      + '<td><button type="button" class="btn btn-outline-danger btn-sm button-remove-rule">&times;</button></td>';
+    return row;
+  }
+
+  document.getElementById('button-add-rule').addEventListener('click', function () {
+    var row = buildRuleRow();
+    rulesTableBody.appendChild(row);
+    bindRemove(row);
+  });
+
+  var productInput = document.getElementById('input-product');
+  var productIdInput = document.getElementById('input-product-id');
+  var productDropdown = document.getElementById('product-autocomplete');
+  var productTimer = null;
+
+  productInput.addEventListener('input', function () {
+    clearTimeout(productTimer);
+    var value = productInput.value;
+    if (value.length < 3) {
+      productDropdown.style.display = 'none';
+      return;
+    }
+    productTimer = setTimeout(function () {
+      fetch('index.php?route=catalog/product.autocomplete&user_token={{ user_token }}&filter_name=' + encodeURIComponent(value))
+        .then(function (r) { return r.json(); })
+        .then(function (json) {
+          productDropdown.innerHTML = '';
+          (json || []).forEach(function (product) {
+            var item = document.createElement('a');
+            item.className = 'dropdown-item';
+            item.href = '#';
+            item.textContent = product.name + ' (#' + product.product_id + ')';
+            item.addEventListener('click', function (e) {
+              e.preventDefault();
+              productInput.value = product.name;
+              productIdInput.value = product.product_id;
+              productDropdown.style.display = 'none';
+
+              var productPrice = parseFloat(product.price);
+              var amountValue = isNaN(productPrice) ? '' : productPrice.toFixed(2);
+              var amountInputs = rulesTableBody.querySelectorAll('input[name$="[amount]"]');
+
+              if (!amountInputs.length) {
+                var row = buildRuleRow(1, 999, 1, 'MONTH', amountValue);
+                rulesTableBody.appendChild(row);
+                bindRemove(row);
+              } else {
+                amountInputs.forEach(function (input) {
+                  if (!input.value) {
+                    input.value = amountValue;
+                  }
+                });
+              }
+            });
+            productDropdown.appendChild(item);
+          });
+          productDropdown.style.display = (json || []).length ? 'block' : 'none';
+        });
+    }, 300);
+  });
+
+  document.getElementById('form-subscription-plan').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var formData = new FormData(this);
+    fetch('{{ action|raw }}', { method: 'POST', body: formData })
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        var alertBox = document.getElementById('alert');
+        if (json.error) {
+          alertBox.innerHTML = '<div class="alert alert-danger">' + json.error + '</div>';
+        } else {
+          alertBox.innerHTML = '<div class="alert alert-success">' + json.success + '</div>';
+          window.location = '{{ back_js|raw }}';
+        }
+      });
+  });
+});
+</script>
+{{ footer }}

@@ -1,0 +1,141 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="float-end">
+        <a href="{{ back }}" data-bs-toggle="tooltip" title="{{ button_back }}" class="btn btn-light">
+          <i class="fas fa-reply"></i>
+        </a>
+      </div>
+      <h1>{{ heading_title }}</h1>
+    </div>
+  </div>
+  <div class="container-fluid" id="alliance-page">
+    <div id="alert"></div>
+    <div class="alert alert-warning">{{ help_reprice_scope }}</div>
+    <div class="card">
+      <div class="card-body">
+        <form id="form-reprice" class="row g-3">
+          <input type="hidden" name="subscription_plan_id" value="{{ plan.subscription_plan_id }}" />
+
+          <input type="hidden" name="currency" value="UAH" />
+          <div class="row mb-3">
+            <label class="form-label">{{ entry_currency }}</label>
+            <div class="form-control-plaintext">UAH</div>
+          </div>
+
+          <h5>{{ entry_rules }}</h5>
+          <div class="form-text">{{ help_rules }}</div>
+          <table class="table" id="rules-table">
+            <thead>
+              <tr>
+                <td>{{ entry_payment_number_from }}</td>
+                <td>{{ entry_payment_number_to }}</td>
+                <td>{{ entry_interval_value }}</td>
+                <td>{{ entry_interval_unit }}</td>
+                <td>{{ entry_amount }}</td>
+                <td></td>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rule in current_rules %}
+                <tr>
+                  <td><input type="number" min="1" name="rules[{{ loop.index0 }}][payment_number_from]" value="{{ rule.paymentNumberFrom }}" class="form-control" /></td>
+                  <td><input type="number" min="1" name="rules[{{ loop.index0 }}][payment_number_to]" value="{{ rule.paymentNumberTo }}" class="form-control" /></td>
+                  <td><input type="number" min="1" name="rules[{{ loop.index0 }}][interval_value]" value="{{ rule.intervalValue }}" class="form-control" /></td>
+                  <td>
+                    <select name="rules[{{ loop.index0 }}][interval_unit]" class="form-select">
+                      {% for unit in ['DAY', 'WEEK', 'MONTH'] %}
+                        <option value="{{ unit }}" {{ rule.intervalUnit == unit ? 'selected' : '' }}>{{ unit }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><input type="text" name="rules[{{ loop.index0 }}][amount]" value="{{ rule.amountDisplay }}" class="form-control" /></td>
+                  <td><button type="button" class="btn btn-outline-danger btn-sm button-remove-rule">&times;</button></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <button type="button" id="button-add-rule" class="btn btn-outline-primary">{{ button_add_rule }}</button>
+
+          <div class="row mb-3 mt-3">
+            <label class="form-label" for="input-applies-from">{{ entry_applies_from }}</label>
+            <input type="date" name="applies_from" id="input-applies-from" min="{{ min_applies_from }}" value="{{ min_applies_from }}" class="form-control" />
+            <div class="form-text">{{ help_lead_time }}</div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-reason">{{ entry_reason }}</label>
+            <input type="text" name="reason" id="input-reason" class="form-control" />
+          </div>
+
+          <div class="row mb-3">
+            <div class="form-check">
+              <input type="checkbox" name="notified_confirmed" id="input-notified-confirmed" class="form-check-input" value="1" />
+              <label class="form-check-label" for="input-notified-confirmed">{{ entry_notified_confirmed }}</label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-warning">{{ button_reprice }}</button>
+        </form>
+
+        {% if history %}
+          <hr />
+          <table class="table table-sm">
+            <thead><tr><td>Date</td><td>Applies from</td><td>Reason</td></tr></thead>
+            <tbody>
+              {% for item in history %}
+                <tr><td>{{ item.date_added }}</td><td>{{ item.applies_from }}</td><td>{{ item.reason }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function () {
+  var rulesTableBody = document.querySelector('#rules-table tbody');
+
+  function bindRemove(row) {
+    row.querySelector('.button-remove-rule').addEventListener('click', function () {
+      row.remove();
+    });
+  }
+
+  document.querySelectorAll('#rules-table tbody tr').forEach(bindRemove);
+
+  var ruleRowIndex = {{ current_rules|length }};
+
+  document.getElementById('button-add-rule').addEventListener('click', function () {
+    var index = ruleRowIndex++;
+    var row = document.createElement('tr');
+    row.innerHTML = '<td><input type="number" min="1" name="rules[' + index + '][payment_number_from]" class="form-control" /></td>'
+      + '<td><input type="number" min="1" name="rules[' + index + '][payment_number_to]" class="form-control" /></td>'
+      + '<td><input type="number" min="1" name="rules[' + index + '][interval_value]" class="form-control" /></td>'
+      + '<td><select name="rules[' + index + '][interval_unit]" class="form-select"><option value="DAY">DAY</option><option value="WEEK">WEEK</option><option value="MONTH" selected>MONTH</option></select></td>'
+      + '<td><input type="text" name="rules[' + index + '][amount]" class="form-control" /></td>'
+      + '<td><button type="button" class="btn btn-outline-danger btn-sm button-remove-rule">&times;</button></td>';
+    rulesTableBody.appendChild(row);
+    bindRemove(row);
+  });
+
+  document.getElementById('form-reprice').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var formData = new FormData(this);
+    fetch('{{ action|raw }}', { method: 'POST', body: formData })
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        var alertBox = document.getElementById('alert');
+        if (json.error) {
+          alertBox.innerHTML = '<div class="alert alert-danger">' + json.error + '</div>';
+        } else {
+          alertBox.innerHTML = '<div class="alert alert-success">' + json.success + '</div>';
+          window.location = '{{ back_js|raw }}';
+        }
+      });
+  });
+});
+</script>
+{{ footer }}

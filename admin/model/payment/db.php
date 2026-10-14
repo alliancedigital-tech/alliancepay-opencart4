@@ -102,6 +102,125 @@ class Db extends \Opencart\System\Engine\Model
             KEY `merchant_id` (`merchant_id`),
             KEY `order_id` (`order_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+        $this->initSubscriptionTables();
+    }
+
+    public function initSubscriptionTables(): void
+    {
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_subscription_plan_template`
+        (
+            `template_id` INT(11) NOT NULL AUTO_INCREMENT,
+            `code` VARCHAR(255) NOT NULL,
+            `name` VARCHAR(255) NOT NULL,
+            `category_indicator` VARCHAR(255) NOT NULL,
+            `rules_template` LONGTEXT NOT NULL,
+            `status` VARCHAR(20) NOT NULL DEFAULT 'active',
+            `date_added` DATETIME NOT NULL,
+            `date_modified` DATETIME NOT NULL,
+            PRIMARY KEY (`template_id`),
+            UNIQUE KEY `code` (`code`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_subscription_plan`
+        (
+            `subscription_plan_id` INT(11) NOT NULL AUTO_INCREMENT,
+            `provider_plan_id` VARCHAR(255) DEFAULT NULL,
+            `product_id` INT(11) NOT NULL,
+            `template_id` INT(11) DEFAULT NULL,
+            `plan_key` VARCHAR(64) NOT NULL,
+            `version_id` VARCHAR(255) DEFAULT NULL,
+            `category_indicator` VARCHAR(255) NOT NULL,
+            `merchant_id` VARCHAR(255) NOT NULL,
+            `name` VARCHAR(255) NOT NULL,
+            `description` VARCHAR(255) DEFAULT NULL,
+            `rules` LONGTEXT NOT NULL,
+            `status` VARCHAR(20) NOT NULL,
+            `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+            `active_subscriptions_count` INT(11) NOT NULL DEFAULT 0,
+            `sync_status` VARCHAR(20) NOT NULL,
+            `sync_error` TEXT,
+            `applies_from` DATETIME DEFAULT NULL,
+            `applies_to` DATETIME DEFAULT NULL,
+            `date_added` DATETIME NOT NULL,
+            `date_modified` DATETIME NOT NULL,
+            PRIMARY KEY (`subscription_plan_id`),
+            UNIQUE KEY `plan_key` (`plan_key`),
+            KEY `provider_plan_id` (`provider_plan_id`),
+            KEY `product_id` (`product_id`),
+            KEY `is_active` (`is_active`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_subscription`
+        (
+            `subscription_id` INT(11) NOT NULL AUTO_INCREMENT,
+            `order_id` INT(11) NOT NULL,
+            `subscription_plan_id` INT(11) NOT NULL,
+            `customer_id` INT(11) DEFAULT NULL,
+            `rules_snapshot` LONGTEXT NOT NULL,
+            `provider_order_id` VARCHAR(255) DEFAULT NULL,
+            `merchant_request_id` VARCHAR(255) DEFAULT NULL,
+            `status` VARCHAR(20) NOT NULL,
+            `callback_data` LONGTEXT,
+            `date_added` DATETIME NOT NULL,
+            `date_modified` DATETIME NOT NULL,
+            PRIMARY KEY (`subscription_id`),
+            KEY `order_id` (`order_id`),
+            KEY `subscription_plan_id` (`subscription_plan_id`),
+            KEY `provider_order_id` (`provider_order_id`),
+            KEY `customer_id` (`customer_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_scheduled_payment`
+        (
+            `scheduled_payment_id` INT(11) NOT NULL AUTO_INCREMENT,
+            `subscription_id` INT(11) NOT NULL,
+            `provider_order_id` VARCHAR(255) DEFAULT NULL,
+            `provider_scheduled_payment_id` VARCHAR(255) DEFAULT NULL,
+            `status` VARCHAR(20) NOT NULL,
+            `scheduled_date` DATETIME DEFAULT NULL,
+            `executed_at` DATETIME DEFAULT NULL,
+            `operation_id` VARCHAR(255) DEFAULT NULL,
+            `retry_count` INT(11) NOT NULL DEFAULT 0,
+            `date_added` DATETIME NOT NULL,
+            `date_modified` DATETIME NOT NULL,
+            PRIMARY KEY (`scheduled_payment_id`),
+            KEY `subscription_id` (`subscription_id`),
+            KEY `provider_order_id` (`provider_order_id`),
+            KEY `operation_id` (`operation_id`),
+            KEY `provider_scheduled_payment_id` (`provider_scheduled_payment_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_subscription_plan_version_history`
+        (
+            `version_history_id` INT(11) NOT NULL AUTO_INCREMENT,
+            `subscription_plan_id` INT(11) NOT NULL,
+            `old_version_id` VARCHAR(255) DEFAULT NULL,
+            `new_version_id` VARCHAR(255) DEFAULT NULL,
+            `old_rules` LONGTEXT,
+            `new_rules` LONGTEXT NOT NULL,
+            `applies_from` DATETIME NOT NULL,
+            `notified_confirmed` TINYINT(1) NOT NULL DEFAULT 0,
+            `reason` VARCHAR(255) DEFAULT NULL,
+            `created_by` INT(11) DEFAULT NULL,
+            `date_added` DATETIME NOT NULL,
+            PRIMARY KEY (`version_history_id`),
+            KEY `subscription_plan_id` (`subscription_plan_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_subscription_audit_log`
+        (
+            `audit_log_id` INT(11) NOT NULL AUTO_INCREMENT,
+            `action` VARCHAR(100) NOT NULL,
+            `subscription_plan_id` INT(11) DEFAULT NULL,
+            `product_id` INT(11) DEFAULT NULL,
+            `user_id` INT(11) DEFAULT NULL,
+            `details` LONGTEXT,
+            `date_added` DATETIME NOT NULL,
+            PRIMARY KEY (`audit_log_id`),
+            KEY `subscription_plan_id` (`subscription_plan_id`),
+            KEY `action` (`action`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
     }
 
     public function updateAllianceOrderTable()
