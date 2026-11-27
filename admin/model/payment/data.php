@@ -12,6 +12,12 @@ class Data extends \Opencart\System\Engine\Model
 {
     private $error = [];
 
+    public function setFiscalizationErrors(array $errors): void
+    {
+        $this->error['fiscalization'] = $errors;
+        $this->error['warning'] = implode(' ', $errors);
+    }
+
     /**
      * @param object $session
      * @param object $config
@@ -157,6 +163,20 @@ class Data extends \Opencart\System\Engine\Model
         $data['help_preauth_status'] = $this->language->get('help_preauth_status');
         $data['entry_completion_status'] = $this->language->get('entry_completion_status');
         $data['help_completion_status'] = $this->language->get('help_completion_status');
+
+        foreach (['enabled', 'auto', 'tax_code', 'classification_code', 'excise_labels', 'measurement_code'] as $field) {
+            $key = 'payment_alliance_fiscalization_' . $field;
+            $data[$key] = $request->post[$key] ?? $config->get($key);
+            $data['entry_fiscalization_' . $field] = $this->language->get('entry_fiscalization_' . $field);
+            $data['help_fiscalization_' . $field] = $this->language->get('help_fiscalization_' . $field);
+        }
+        if ($data['payment_alliance_fiscalization_measurement_code'] === null
+            || $data['payment_alliance_fiscalization_measurement_code'] === ''
+        ) {
+            $data['payment_alliance_fiscalization_measurement_code'] = '0001';
+        }
+        $data['text_fiscalization'] = $this->language->get('text_fiscalization');
+        $data['error_fiscalization'] = $this->error['fiscalization'] ?? [];
 
         $storeCurrency = $config->get('config_currency') ?: 'UAH';
         $data['config_currency'] = $storeCurrency;

@@ -10,6 +10,7 @@ namespace Opencart\Admin\Controller\Extension\Alliance\Payment;
 use Opencart\System\Engine\Registry;
 use Opencart\System\Helper\Alliance\Config;
 use Opencart\System\Helper\Alliance\Ecom;
+use Opencart\System\Helper\Alliance\Fiscalization\FiscalizationValidator;
 use Opencart\System\Library\Extension\Alliance\Http\ResponseDecoder;
 
 /**
@@ -76,6 +77,41 @@ class Alliance extends \Opencart\System\Engine\Controller
             'event_code' => 'alliance_subscription_product_options',
             'sort_order' => 0,
         ],
+        [
+            'description' => 'Add fiscalization block to order info',
+            'trigger' => 'admin/view/sale/order_info/after',
+            'action' => 'extension/alliance/alliance/fiscalization|injectOrderBlock',
+            'event_code' => 'alliance_fiscalization_order_block',
+            'sort_order' => 4,
+        ],
+        [
+            'description' => 'Add fiscalization tab to product form',
+            'trigger' => 'admin/view/catalog/product_form/after',
+            'action' => 'extension/alliance/alliance/fiscalization|injectProductTab',
+            'event_code' => 'alliance_fiscalization_product_tab',
+            'sort_order' => 0,
+        ],
+        [
+            'description' => 'Save fiscalization product attributes after product add',
+            'trigger' => 'admin/model/catalog/product/addProduct/after',
+            'action' => 'extension/alliance/alliance/fiscalization|saveProduct',
+            'event_code' => 'alliance_fiscalization_product_add',
+            'sort_order' => 0,
+        ],
+        [
+            'description' => 'Save fiscalization product attributes after product edit',
+            'trigger' => 'admin/model/catalog/product/editProduct/after',
+            'action' => 'extension/alliance/alliance/fiscalization|saveProduct',
+            'event_code' => 'alliance_fiscalization_product_edit',
+            'sort_order' => 0,
+        ],
+        [
+            'description' => 'Delete fiscalization product attributes after product delete',
+            'trigger' => 'admin/model/catalog/product/deleteProduct/after',
+            'action' => 'extension/alliance/alliance/fiscalization|deleteProduct',
+            'event_code' => 'alliance_fiscalization_product_delete',
+            'sort_order' => 0,
+        ],
     ];
 
     public function index(): void
@@ -111,22 +147,54 @@ class Alliance extends \Opencart\System\Engine\Controller
                 }
             }
 
-            $this->model_setting_setting->editSetting('payment_alliance', $post);
+            $fiscalizationErrors = $this->validateFiscalizationSettings($post);
 
-            $this->session->data['success'] = $this->language->get(
-                'text_success'
-            );
-            $this->response->redirect(
-                $this->url->link(
-                    'extension/alliance/payment/alliance',
-                    'user_token=' . $this->getUserToken()
-                )
-            );
+            if (!$fiscalizationErrors) {
+                $this->model_setting_setting->editSetting('payment_alliance', $post);
+
+                $this->session->data['success'] = $this->language->get(
+                    'text_success'
+                );
+                $this->response->redirect(
+                    $this->url->link(
+                        'extension/alliance/payment/alliance',
+                        'user_token=' . $this->getUserToken()
+                    )
+                );
+            }
+
+            $this->model_extension_alliance_payment_data->setFiscalizationErrors($fiscalizationErrors);
         }
 
         $data = $this->model_extension_alliance_payment_data->fillSettingData($this->session, $this->config, $this->request);
 
         $this->response->setOutput($this->load->view('extension/alliance/payment/alliance', $data));
+    }
+
+    private function validateFiscalizationSettings(array &$post): array
+    {
+        $this->load->helper('extension/alliance/alliance/config');
+        $this->load->helper('extension/alliance/alliance/fiscalization/fiscalizationvalidator');
+
+        $prefix = 'payment_alliance_fiscalization_';
+        $values = [];
+        foreach (['tax_code', 'classification_code', 'measurement_code'] as $field) {
+            $post[$prefix . $field] = trim((string)($post[$prefix . $field] ?? ''));
+            $values[$field] = $post[$prefix . $field];
+        }
+
+        $post[$prefix . 'excise_labels'] = FiscalizationValidator::formatExciseLabels(
+            FiscalizationValidator::parseExciseLabels($post[$prefix . 'excise_labels'] ?? '')
+        );
+        $post[$prefix . 'enabled'] = !empty($post[$prefix . 'enabled']) ? '1' : '0';
+        $post[$prefix . 'auto'] = !empty($post[$prefix . 'auto']) ? '1' : '0';
+
+        $errors = [];
+        foreach (FiscalizationValidator::validate($values, true, true) as $field => $languageKey) {
+            $errors[$field] = $this->language->get($languageKey);
+        }
+
+        return $errors;
     }
 
     public function install(): void
@@ -137,6 +205,7 @@ class Alliance extends \Opencart\System\Engine\Controller
         $this->load->model('extension/alliance/payment/alliance');
         $this->load->model('extension/alliance/payment/db');
         $this->load->model('user/user_group');
+        $this->load->helper('extension/alliance/alliance/config');
 
         $default_pending = 1;
         $default_paid = 7;
@@ -155,6 +224,9 @@ class Alliance extends \Opencart\System\Engine\Controller
             'payment_alliance_preauth_status' => $default_pending,
             'payment_alliance_completion_status' => $default_paid,
             'payment_alliance_preauth_exp_date' => '2h',
+            'payment_alliance_fiscalization_enabled' => '0',
+            'payment_alliance_fiscalization_auto' => '0',
+            'payment_alliance_fiscalization_measurement_code' => Config::FISCALIZATION_MEASUREMENT_CODE_DEFAULT,
         ];
 
         $subscriptionRoutes = [
@@ -162,6 +234,7 @@ class Alliance extends \Opencart\System\Engine\Controller
             'extension/alliance/alliance/subscriptionplan',
             'extension/alliance/alliance/subscription',
             'extension/alliance/alliance/subscriptionplanreprice',
+            'extension/alliance/alliance/fiscalization',
         ];
 
         foreach ($subscriptionRoutes as $route) {
@@ -197,6 +270,7 @@ class Alliance extends \Opencart\System\Engine\Controller
                 'extension/alliance/alliance/subscriptionplan',
                 'extension/alliance/alliance/subscription',
                 'extension/alliance/alliance/subscriptionplanreprice',
+            'extension/alliance/alliance/fiscalization',
             ];
 
             foreach ($subscriptionRoutes as $route) {
@@ -281,7 +355,14 @@ class Alliance extends \Opencart\System\Engine\Controller
         $this->load->model('extension/alliance/payment/db');
         $this->model_extension_alliance_payment_db->updateAllianceOrderTable();
         $this->model_extension_alliance_payment_db->initSubscriptionTables();
+        $this->model_extension_alliance_payment_db->initFiscalizationTables();
+        $this->installEvents();
+        $this->load->model('user/user_group');
+        foreach (['access', 'modify'] as $permission) {
+            $this->model_user_user_group->addPermission($this->user->getGroupId(), $permission, 'extension/alliance/alliance/fiscalization');
+        }
         $this->load->model('setting/setting');
+        // TODO: set the new module version
         $this->model_setting_setting->editSetting('payment_alliance', ['payment_alliance_version' => $this->version]);
     }
 

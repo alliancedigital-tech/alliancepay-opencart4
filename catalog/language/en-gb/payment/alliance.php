@@ -21,3 +21,5 @@ $_['error_subscription_guest_checkout'] = 'Please log in to your account to subs
 $_['error_subscription_mixed_cart']     = 'A subscription product cannot be combined with other products, or with another subscription, in the same order.';
 $_['text_subscription_options']         = 'Purchase option';
 $_['text_one_time_purchase']            = 'One-time purchase';
+$_['comment_fiscalization_success'] = 'Receipt fiscalized, fiscal number: %s';
+$_['comment_fiscalization_fail']    = 'Fiscalization error: %s %s';

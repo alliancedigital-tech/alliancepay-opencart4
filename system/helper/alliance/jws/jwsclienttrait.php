@@ -11,7 +11,9 @@ use SimpleJWT\InvalidTokenException;
 use SimpleJWT\JWT;
 use SimpleJWT\Keys\ECKey;
 use SimpleJWT\Keys\KeyFactory;
+use SimpleJWT\Keys\KeyInterface;
 use SimpleJWT\Keys\KeySet;
+use SimpleJWT\Keys\RSAKey;
 use Throwable;
 
 /**
@@ -40,13 +42,14 @@ trait JwsClientTrait
 
         try {
             $key = KeyFactory::create($privateKeyPem, 'pem');
+            $alg = $this->resolveSigningAlgorithm($key);
             $key->setKeyId($kid);
             $keySet = new KeySet();
             $keySet->add($key);
 
             $jwt = new JWT(
                 [
-                    'alg' => 'RS256',
+                    'alg' => $alg,
                     'ts' => (string)(int)(microtime(true) * 1000),
                     'targetUrl' => '/' . ltrim($endpoint, '/'),
                     'kid' => $kid,
@@ -60,6 +63,28 @@ trait JwsClientTrait
             $this->logger->log('JWS signing failed: ' . $e->getMessage(), LogLevel::ERROR);
             throw $e;
         }
+    }
+
+    private function resolveSigningAlgorithm(KeyInterface $key): string
+    {
+        $type = $key->getKeyType();
+
+        if ($type === ECKey::KTY) {
+            $curve = $key instanceof ECKey ? $key->getCurve() : null;
+            if ($curve !== 'P-256') {
+                throw new \RuntimeException(
+                    'JWS Private Key must use the P-256 curve for ES256, got: ' . ($curve ?? 'unknown')
+                );
+            }
+
+            return 'ES256';
+        }
+
+        if ($type === RSAKey::KTY) {
+            return 'RS256';
+        }
+
+        throw new \RuntimeException('Unsupported JWS Private Key type: ' . $type . '. Use EC P-256 (ES256).');
     }
 
     /**

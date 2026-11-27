@@ -29,4 +29,8 @@ class Config
     public const PREAUTH_EXP_DATE_BUFFER_SECONDS = 30;
 
     public const PREAUTH_AMOUNT_TOLERANCE = 0.20;
+
+    public const FISCALIZATION_MEASUREMENT_CODE_DEFAULT = '0001';
+
+    public const FISCALIZATION_TAX_CODES_REQUIRING_CLASSIFICATION = [2, 7, 8];
 }

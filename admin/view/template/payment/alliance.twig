@@ -431,6 +431,62 @@
           </div>
 
           <br />
+          <h3 class="mb-3">{{ text_fiscalization }}</h3>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-fiscalization-enabled">{{ entry_fiscalization_enabled }}</label>
+            <div class="input-group">
+              <select name="payment_alliance_fiscalization_enabled" id="input-fiscalization-enabled" class="form-select">
+                <option value="1" {{ payment_alliance_fiscalization_enabled ? 'selected="selected"' : '' }}>{{ text_enabled }}</option>
+                <option value="0" {{ not payment_alliance_fiscalization_enabled ? 'selected="selected"' : '' }}>{{ text_disabled }}</option>
+              </select>
+            </div>
+            <div class="form-text">{{ help_fiscalization_enabled }}</div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-fiscalization-auto">{{ entry_fiscalization_auto }}</label>
+            <div class="input-group">
+              <select name="payment_alliance_fiscalization_auto" id="input-fiscalization-auto" class="form-select">
+                <option value="1" {{ payment_alliance_fiscalization_auto ? 'selected="selected"' : '' }}>{{ text_enabled }}</option>
+                <option value="0" {{ not payment_alliance_fiscalization_auto ? 'selected="selected"' : '' }}>{{ text_disabled }}</option>
+              </select>
+            </div>
+            <div class="form-text">{{ help_fiscalization_auto }}</div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-fiscalization-tax-code">{{ entry_fiscalization_tax_code }}</label>
+            <input type="text" name="payment_alliance_fiscalization_tax_code" id="input-fiscalization-tax-code"
+                   value="{{ payment_alliance_fiscalization_tax_code }}" class="form-control{{ error_fiscalization.tax_code ? ' is-invalid' : '' }}" />
+            {% if error_fiscalization.tax_code %}<div class="invalid-feedback d-block">{{ error_fiscalization.tax_code }}</div>{% endif %}
+            <div class="form-text">{{ help_fiscalization_tax_code }}</div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-fiscalization-classification-code">{{ entry_fiscalization_classification_code }}</label>
+            <input type="text" name="payment_alliance_fiscalization_classification_code" id="input-fiscalization-classification-code"
+                   value="{{ payment_alliance_fiscalization_classification_code }}" class="form-control{{ error_fiscalization.classification_code ? ' is-invalid' : '' }}" />
+            {% if error_fiscalization.classification_code %}<div class="invalid-feedback d-block">{{ error_fiscalization.classification_code }}</div>{% endif %}
+            <div class="form-text">{{ help_fiscalization_classification_code }}</div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-fiscalization-excise-labels">{{ entry_fiscalization_excise_labels }}</label>
+            <textarea name="payment_alliance_fiscalization_excise_labels" id="input-fiscalization-excise-labels"
+                      rows="2" class="form-control">{{ payment_alliance_fiscalization_excise_labels }}</textarea>
+            <div class="form-text">{{ help_fiscalization_excise_labels }}</div>
+          </div>
+
+          <div class="row mb-3">
+            <label class="form-label" for="input-fiscalization-measurement-code">{{ entry_fiscalization_measurement_code }}</label>
+            <input type="text" name="payment_alliance_fiscalization_measurement_code" id="input-fiscalization-measurement-code"
+                   value="{{ payment_alliance_fiscalization_measurement_code }}" class="form-control{{ error_fiscalization.measurement_code ? ' is-invalid' : '' }}" />
+            {% if error_fiscalization.measurement_code %}<div class="invalid-feedback d-block">{{ error_fiscalization.measurement_code }}</div>{% endif %}
+            <div class="form-text">{{ help_fiscalization_measurement_code }}</div>
+          </div>
+
+          <br />
         </form>
       </div>
     </div>

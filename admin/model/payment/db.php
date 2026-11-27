@@ -104,6 +104,60 @@ class Db extends \Opencart\System\Engine\Model
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
 
         $this->initSubscriptionTables();
+        $this->initFiscalizationTables();
+    }
+
+    public function initFiscalizationTables(): void
+    {
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_fiscalization`
+        (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `order_id` INT(11) NOT NULL,
+            `store_id` INT(11) DEFAULT NULL,
+            `operation_id` VARCHAR(64) NOT NULL,
+            `operation_type` VARCHAR(16) NOT NULL,
+            `merchant_request_id` VARCHAR(64) NOT NULL,
+            `bucket_id` VARCHAR(64) DEFAULT NULL,
+            `status` VARCHAR(16) NOT NULL,
+            `receipt_comment` VARCHAR(255) DEFAULT NULL,
+            `fiscal_number` VARCHAR(64) DEFAULT NULL,
+            `receipt_url` TEXT DEFAULT NULL,
+            `fiscalization_date_time` DATETIME DEFAULT NULL,
+            `fiscalization_modification_date_time` DATETIME DEFAULT NULL,
+            `error_code` VARCHAR(32) DEFAULT NULL,
+            `error_description` TEXT DEFAULT NULL,
+            `request_payload` LONGTEXT DEFAULT NULL,
+            `response_payload` LONGTEXT DEFAULT NULL,
+            `callback_payload` LONGTEXT DEFAULT NULL,
+            `created_at` DATETIME NOT NULL,
+            `updated_at` DATETIME NOT NULL,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uniq_operation_id` (`operation_id`),
+            UNIQUE KEY `uniq_merchant_request_id` (`merchant_request_id`),
+            KEY `idx_order_id` (`order_id`),
+            KEY `idx_bucket_id` (`bucket_id`),
+            KEY `idx_status` (`status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+
+        $refundItemsColumn = $this->db->query(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" . DB_DATABASE
+            . "' AND TABLE_NAME = '" . DB_PREFIX . "alliance_integration_order_refund' AND COLUMN_NAME = 'refund_items'"
+        );
+        if (!$refundItemsColumn->num_rows) {
+            $this->db->query(
+                "ALTER TABLE `" . DB_PREFIX . "alliance_integration_order_refund` ADD `refund_items` TEXT DEFAULT NULL"
+            );
+        }
+
+        $this->db->query("CREATE TABLE IF NOT EXISTS `" . DB_PREFIX . "alliance_fiscalization_product`
+        (
+            `product_id` INT(11) NOT NULL,
+            `tax_code` INT(11) DEFAULT NULL,
+            `classification_code` VARCHAR(32) DEFAULT NULL,
+            `excise_labels` TEXT DEFAULT NULL,
+            `measurement_code` VARCHAR(16) DEFAULT NULL,
+            PRIMARY KEY (`product_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
     }
 
     public function initSubscriptionTables(): void

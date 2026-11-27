@@ -15,3 +15,5 @@ $_['error_subscription_guest_checkout'] = 'Будь ласка, увійдіть
 $_['error_subscription_mixed_cart']     = 'Товар з підпискою неможливо поєднати з іншими товарами або з іншою підпискою в одному замовленні.';
 $_['text_subscription_options']         = 'Варіант придбання';
 $_['text_one_time_purchase']            = 'Одноразова покупка';
+$_['comment_fiscalization_success'] = 'Чек фіскалізовано, ФН: %s';
+$_['comment_fiscalization_fail']    = 'Помилка фіскалізації: %s %s';

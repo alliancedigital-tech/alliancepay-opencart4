@@ -10,6 +10,9 @@ namespace Opencart\Catalog\Controller\Extension\Alliance\Payment;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Opencart\System\Helper\Alliance\Ecom;
+use Opencart\System\Helper\Alliance\Fiscalization\FiscalizationRepository;
+use Opencart\System\Helper\Alliance\Fiscalization\FiscalizationService;
+use Opencart\System\Helper\Alliance\log\AllianceLogger;
 use Opencart\System\Helper\Alliance\SubscriptionEcom;
 use Throwable;
 
@@ -215,10 +218,74 @@ class Alliance extends \Opencart\System\Engine\Controller
                 $alliance_order['order_id']
             );
 
+            $this->autoFiscalize($callbackOperation, $status, (int)$alliance_order['order_id']);
+
             return true;
         }
 
         return false;
+    }
+
+    public function fiscalizationCallback(): bool
+    {
+        $this->response->addHeader('Cache-Control: no-store, no-cache, must-revalidate');
+        $body = trim((string)file_get_contents('php://input'));
+
+        if ($body === '' || strpos($body, ' ') !== false || substr_count($body, '.') !== 2) {
+            $this->response->addHeader($this->request->server['SERVER_PROTOCOL'] . ' 400 Bad Request');
+
+            return false;
+        }
+
+        try {
+            $payload = $this->ecom->verifyJwsToken($body);
+        } catch (Throwable $e) {
+            (new AllianceLogger($this->registry))->log(
+                'Fiscalization callback: invalid JWS: ' . $e->getMessage(),
+                \Psr\Log\LogLevel::ERROR
+            );
+            $this->response->addHeader($this->request->server['SERVER_PROTOCOL'] . ' 400 Bad Request');
+
+            return false;
+        }
+
+        $this->load->helper('extension/alliance/alliance/fiscalization/fiscalizationservice');
+        $code = (new FiscalizationService($this->registry))->handleCallback($payload);
+
+        if ($code !== 200) {
+            $this->response->addHeader($this->request->server['SERVER_PROTOCOL'] . ' ' . $code
+                . ($code === 404 ? ' Not Found' : ' Internal Server Error'));
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function autoFiscalize(array $callbackOperation, string $status, int $orderId): void
+    {
+        $this->load->helper('extension/alliance/alliance/fiscalization/fiscalizationservice');
+
+        if ($status !== FiscalizationRepository::STATUS_SUCCESS || empty($callbackOperation['type'])) {
+            return;
+        }
+
+        try {
+            $service = new FiscalizationService($this->registry);
+
+            if ($callbackOperation['type'] === Ecom::OPERATION_TYPE_REFUND) {
+                if (!empty($callbackOperation['operationId'])) {
+                    $service->autoFiscalizeRefund($orderId, (string)$callbackOperation['operationId']);
+                }
+            } elseif ($callbackOperation['type'] !== Ecom::OPERATION_TYPE_PREAUTH) {
+                $service->autoFiscalizePurchase($orderId);
+            }
+        } catch (Throwable $e) {
+            (new AllianceLogger($this->registry))->log(
+                'Auto fiscalization failed: ' . $e->getMessage(),
+                \Psr\Log\LogLevel::ERROR
+            );
+        }
     }
 
     /**

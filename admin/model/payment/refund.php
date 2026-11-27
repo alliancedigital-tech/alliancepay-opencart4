@@ -108,6 +108,15 @@ class Refund extends Model
                     $data,
                     $orderId
                 );
+                if (!empty($data['operationId'])) {
+                    $this->db->query(
+                        "UPDATE `" . DB_PREFIX . "alliance_integration_order_refund` SET `refund_items` = '"
+                        . $this->db->escape(json_encode([
+                            'products' => $isFullReturn ? null : array_map('intval', (array)$productIds),
+                            'shipping' => $isFullReturn || !empty($refundShipping),
+                        ])) . "' WHERE `operation_id` = '" . $this->db->escape((string)$data['operationId']) . "'"
+                    );
+                }
                 $totalAmountRefunds = $this->model_extension_alliance_payment_refund_history
                     ->getRefundOperationsTotal((int)$orderId);
                 if ($isFullReturn || $allianceOrder['coin_amount'] == $totalAmountRefunds) {

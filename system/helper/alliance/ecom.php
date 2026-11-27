@@ -31,11 +31,17 @@ class Ecom
 
     const GET_PUBLIC_KEY = 'ecom/keys/public_key/get_v1';
 
+    const FISCALIZATION_CREATE = 'ecom/jws/cashbox/v2/fiscalization/create';
+
+    const FISCALIZATION_REQUEST_TIMEOUT = 30;
+
     const BANK_PUBLIC_KEY_CACHE_TTL = 3600;
 
     const METHOD_POST = 'POST';
 
     const NOTIFICATION_URL_ROUTE = 'extension/alliance/payment/alliance|notifyCallback';
+
+    const FISCALIZATION_NOTIFICATION_URL_ROUTE = 'extension/alliance/payment/alliance|fiscalizationCallback';
 
     const HPP_PAY_TYPE_PURCHASE = 'PURCHASE';
 
@@ -263,6 +269,53 @@ class Ecom
         }
 
         return $refundResult;
+    }
+
+    public function createFiscalization(array $body): array
+    {
+        $signedBody = $this->signJwsRequest(self::FISCALIZATION_CREATE, $body);
+
+        try {
+            $response = $this->client->request(self::METHOD_POST, self::FISCALIZATION_CREATE, [
+                'headers' => $this->getJwsRequestHeaders(),
+                'body' => $signedBody,
+                'timeout' => self::FISCALIZATION_REQUEST_TIMEOUT,
+                'connect_timeout' => 10,
+            ]);
+
+            return [
+                'ok' => true,
+                'http_status' => $response->getStatusCode(),
+                'data' => $this->parseResponse($response),
+                'error' => '',
+            ];
+        } catch (\GuzzleHttp\Exception\BadResponseException $e) {
+            $data = [];
+            try {
+                $data = $this->parseResponse($e->getResponse());
+            } catch (Throwable $parseError) {
+                $this->logger->log('Cannot parse fiscalization error response: ' . $parseError->getMessage(), LogLevel::ERROR);
+            }
+            $this->logger->log('Fiscalization request failed: ' . $e->getMessage(), LogLevel::ERROR);
+
+            return [
+                'ok' => false,
+                'http_status' => $e->getResponse()->getStatusCode(),
+                'data' => $data,
+                'error' => (string)($data['msgText'] ?? $data['msgCode'] ?? $e->getMessage()),
+            ];
+        } catch (GuzzleException $e) {
+            $this->logger->log('Fiscalization request failed: ' . $e->getMessage(), LogLevel::ERROR);
+
+            return ['ok' => false, 'http_status' => 0, 'data' => [], 'error' => $e->getMessage()];
+        }
+    }
+
+    public function getFiscalizationNotificationUrl(): string
+    {
+        $baseUrl = defined('HTTP_CATALOG') ? HTTP_CATALOG : HTTP_SERVER;
+
+        return rtrim($baseUrl, '/') . '/index.php?route=' . self::FISCALIZATION_NOTIFICATION_URL_ROUTE;
     }
 
     /**
